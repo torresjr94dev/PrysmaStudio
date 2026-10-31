@@ -1,0 +1,3 @@
+// API pública para la UI. No importa MuPDF: el WASM solo se carga dentro del worker.
+export { EngineClient, EngineFailure, type RunOptions } from "./client.ts";
+export type * from "./protocol.ts";

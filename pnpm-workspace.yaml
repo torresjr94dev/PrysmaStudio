@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Defensa contra paquetes comprometidos: no instalar versiones publicadas hace menos de 14 días.
+minimumReleaseAge: 20160
+
+# Ningún paquete ejecuta scripts de instalación salvo que se liste aquí explícitamente.
+onlyBuiltDependencies: []

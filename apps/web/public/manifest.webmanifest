@@ -1,0 +1,12 @@
+{
+  "name": "vitroPDF",
+  "short_name": "vitroPDF",
+  "description": "Herramientas PDF que trabajan en tu dispositivo.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f5",
+  "theme_color": "#0f766e",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,45 @@
+[project]
+name = "vitropdf-server"
+version = "0.1.0"
+description = "Servidor opcional de vitroPDF: conversión Office→PDF y OCR."
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143,<0.144",
+    "uvicorn[standard]>=0.54,<0.55",
+    "python-multipart>=0.0.32,<0.1",
+    "httpx2>=2.10,<3",
+    "pikepdf>=10.16,<11",
+    "pydantic>=2.14,<3",
+]
+
+[project.optional-dependencies]
+# OCRmyPDF necesita tesseract, ghostscript y unpaper del sistema: solo se instala en la imagen Docker.
+ocr = ["ocrmypdf>=17.13,<18"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    "ruff>=0.17,<0.18",
+]
+
+[tool.uv]
+# Defensa contra paquetes comprometidos: ignora versiones publicadas después de esta fecha.
+# Súbela de forma deliberada (≥ 14 días atrás) al actualizar dependencias.
+exclude-newer = "2026-10-15T00:00:00Z"
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC", "RUF"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S106", "S108"]

@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Desarrollo local del servidor
+server/.work/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
