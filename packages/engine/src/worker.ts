@@ -57,7 +57,7 @@ async function reportFailure(id: string, error: unknown): Promise<void> {
   if (isEngineError(error)) {
     post({ type: "error", id, code: error.code, detail: error.detail });
   } else {
-    console.error("[vitropdf-engine]", error);
+    console.error("[prysma-engine]", error);
     post({ type: "error", id, code: "internal", detail: "Ocurrió un error inesperado al procesar el archivo." });
   }
 }

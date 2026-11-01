@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore, type MouseEvent } from "react";
 
 // Router mínimo sobre la History API: dos tipos de ruta no justifican una dependencia.
-const NAVIGATE = "vitropdf:navigate";
+const NAVIGATE = "prysma:navigate";
 
 function subscribe(onChange: () => void): () => void {
   window.addEventListener("popstate", onChange);

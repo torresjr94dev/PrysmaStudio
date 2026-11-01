@@ -18,7 +18,7 @@ from .jobs import JobManager
 from .problems import Problem, internal_problem, problem_response
 from .security import RateLimited
 
-logger = logging.getLogger("vitropdf")
+logger = logging.getLogger("prysmastudio")
 
 _HTTP_CODES = {
     400: "input.invalid",
@@ -66,7 +66,7 @@ def create_app(
             finally:
                 await manager.stop()
 
-    app = FastAPI(title="vitroPDF", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="PrysmaStudio", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.include_router(router)
 
     @app.middleware("http")
@@ -107,7 +107,7 @@ def run() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     # Sin access log: contendría IPs de usuarios (dato personal) y no aporta para operar un solo nodo.
     uvicorn.run(
-        "vitropdf.main:create_app",
+        "prysmastudio.main:create_app",
         factory=True,
         host="0.0.0.0",  # noqa: S104 — solo es alcanzable desde la red interna de Docker, detrás de Caddy
         port=8080,

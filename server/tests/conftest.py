@@ -14,8 +14,8 @@ import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
-from vitropdf.config import Settings
-from vitropdf.main import create_app
+from prysmastudio.config import Settings
+from prysmastudio.main import create_app
 
 FAKE_PDF = b"%PDF-1.7\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
 ACCESS_KEY = "llave-de-prueba"

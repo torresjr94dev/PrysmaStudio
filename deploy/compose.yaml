@@ -1,4 +1,4 @@
-name: vitropdf
+name: prysmastudio
 
 services:
   web:
@@ -6,14 +6,14 @@ services:
       context: ..
       dockerfile: deploy/web.Dockerfile
       args:
-        VITE_SOURCE_URL: ${VITROPDF_SOURCE_URL:?Define VITROPDF_SOURCE_URL con la URL pública del repositorio (AGPL)}
+        VITE_SOURCE_URL: ${PRYSMA_SOURCE_URL:?Define PRYSMA_SOURCE_URL con la URL pública del repositorio (AGPL)}
     environment:
-      VITROPDF_DOMAIN: ${VITROPDF_DOMAIN:?Define VITROPDF_DOMAIN (p. ej. pdf.tudominio.mx)}
-      VITROPDF_MAX_UPLOAD_MB: ${VITROPDF_MAX_UPLOAD_MB:-100}
+      PRYSMA_DOMAIN: ${PRYSMA_DOMAIN:?Define PRYSMA_DOMAIN (p. ej. pdf.tudominio.mx)}
+      PRYSMA_MAX_UPLOAD_MB: ${PRYSMA_MAX_UPLOAD_MB:-100}
     ports:
-      - "${VITROPDF_HTTP_PORT:-80}:80"
-      - "${VITROPDF_HTTPS_PORT:-443}:443"
-      - "${VITROPDF_HTTPS_PORT:-443}:443/udp"
+      - "${PRYSMA_HTTP_PORT:-80}:80"
+      - "${PRYSMA_HTTPS_PORT:-443}:443"
+      - "${PRYSMA_HTTPS_PORT:-443}:443/udp"
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -33,25 +33,25 @@ services:
       context: ..
       dockerfile: deploy/server.Dockerfile
     environment:
-      VITROPDF_GOTENBERG_URL: http://gotenberg:3000
-      VITROPDF_TRUST_PROXY: "true"
-      VITROPDF_MAX_UPLOAD_MB: ${VITROPDF_MAX_UPLOAD_MB:-100}
-      VITROPDF_MAX_PAGES: ${VITROPDF_MAX_PAGES:-300}
-      VITROPDF_MAX_CONCURRENT_JOBS: ${VITROPDF_MAX_CONCURRENT_JOBS:-2}
-      VITROPDF_JOB_TTL_SECONDS: ${VITROPDF_JOB_TTL_SECONDS:-3600}
-      VITROPDF_JOBS_PER_MINUTE_PER_IP: ${VITROPDF_JOBS_PER_MINUTE_PER_IP:-10}
-      VITROPDF_OCR_THREADS: ${VITROPDF_OCR_THREADS:-2}
+      PRYSMA_GOTENBERG_URL: http://gotenberg:3000
+      PRYSMA_TRUST_PROXY: "true"
+      PRYSMA_MAX_UPLOAD_MB: ${PRYSMA_MAX_UPLOAD_MB:-100}
+      PRYSMA_MAX_PAGES: ${PRYSMA_MAX_PAGES:-300}
+      PRYSMA_MAX_CONCURRENT_JOBS: ${PRYSMA_MAX_CONCURRENT_JOBS:-2}
+      PRYSMA_JOB_TTL_SECONDS: ${PRYSMA_JOB_TTL_SECONDS:-3600}
+      PRYSMA_JOBS_PER_MINUTE_PER_IP: ${PRYSMA_JOBS_PER_MINUTE_PER_IP:-10}
+      PRYSMA_OCR_THREADS: ${PRYSMA_OCR_THREADS:-2}
       # Instancia privada para "ciertos particulares": hashes SHA-256 de las llaves, separados por comas.
-      VITROPDF_ACCESS_KEYS_SHA256: ${VITROPDF_ACCESS_KEYS_SHA256:-}
+      PRYSMA_ACCESS_KEYS_SHA256: ${PRYSMA_ACCESS_KEYS_SHA256:-}
     # Sin salida a internet: solo habla con Caddy y Gotenberg.
     networks: [internal]
     read_only: true
     tmpfs:
-      - /work:size=${VITROPDF_WORK_TMPFS:-2g},uid=10001,gid=10001,mode=0700
+      - /work:size=${PRYSMA_WORK_TMPFS:-2g},uid=10001,gid=10001,mode=0700
       - /tmp:size=512m
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    mem_limit: ${VITROPDF_SERVER_MEMORY:-4g}
+    mem_limit: ${PRYSMA_SERVER_MEMORY:-4g}
     pids_limit: 512
     restart: unless-stopped
 
@@ -67,7 +67,7 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    mem_limit: ${VITROPDF_GOTENBERG_MEMORY:-2g}
+    mem_limit: ${PRYSMA_GOTENBERG_MEMORY:-2g}
     pids_limit: 256
     restart: unless-stopped
 

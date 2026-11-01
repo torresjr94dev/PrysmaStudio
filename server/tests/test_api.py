@@ -177,8 +177,8 @@ def test_unknown_route_is_problem_json(make_client: ClientFactory) -> None:
 def test_ocr_real(tmp_path: Path, gotenberg: GotenbergStub) -> None:
     import httpx2
 
+    from prysmastudio.main import create_app
     from tests.conftest import base_settings
-    from vitropdf.main import create_app
 
     pdf = Path(__file__).parent / "data" / "escaneo.pdf"
     if not pdf.exists():

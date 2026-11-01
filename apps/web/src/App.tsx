@@ -8,7 +8,7 @@ import { ToolPage } from "./pages/ToolPage.tsx";
 import { findTool } from "./tools/registry.ts";
 
 function NotFound() {
-  useDocumentTitle("Página no encontrada · vitroPDF");
+  useDocumentTitle("Página no encontrada · PrysmaStudio");
   return (
     <section className="tool-empty">
       <h1>Esta página no existe</h1>
@@ -50,7 +50,7 @@ export function App() {
         <div className="site-header-inner">
           <a href="/" className="brand" onClick={linkHandler("/")}>
             <img src="/icon.svg" alt="" width={28} height={28} />
-            vitroPDF
+            PrysmaStudio
           </a>
           <ToolMenu capabilities={capabilities} currentSlug={slug} />
         </div>

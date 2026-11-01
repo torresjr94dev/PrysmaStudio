@@ -2,7 +2,7 @@
 	admin off
 }
 
-{$VITROPDF_DOMAIN} {
+{$PRYSMA_DOMAIN} {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		# La promesa "tu archivo no sale de tu equipo" se puede auditar aquí: connect-src solo permite este origen.
@@ -18,7 +18,7 @@
 
 	handle /v1/* {
 		request_body {
-			max_size {$VITROPDF_MAX_UPLOAD_MB:100}MB
+			max_size {$PRYSMA_MAX_UPLOAD_MB:100}MB
 		}
 		reverse_proxy server:8080 {
 			# SSE: reenviar cada evento al instante, sin buffer.

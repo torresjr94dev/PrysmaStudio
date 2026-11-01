@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // Por defecto prueba el build de producción con `vite preview` (sin servidor: las herramientas de servidor
 // se omiten). Para probar el stack completo con Caddy + CSP real + servidor:
-//   E2E_BASE_URL=https://localhost:8443 pnpm --filter @vitropdf/web e2e
+//   E2E_BASE_URL=https://localhost:8443 pnpm --filter @prysmastudio/web e2e
 const external = process.env.E2E_BASE_URL;
 
 export default defineConfig({
@@ -34,7 +34,7 @@ export default defineConfig({
           url: "http://localhost:4173",
           reuseExistingServer: !process.env.CI,
           timeout: 180_000,
-          env: { VITE_SOURCE_URL: "https://example.com/vitropdf-e2e" },
+          env: { VITE_SOURCE_URL: "https://example.com/prysmastudio-e2e" },
         },
       }),
 });

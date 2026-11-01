@@ -3,7 +3,7 @@ import { useRef, useState, type DragEvent } from "react";
 // Reordenamiento con la API nativa de Drag and Drop: en escritorio da auto-scroll del navegador y
 // funciona sin dependencias. El teclado (Alt+flechas) y los botones cubren accesibilidad y pantallas táctiles.
 
-const MIME = "application/x-vitropdf-items";
+const MIME = "application/x-prysma-items";
 
 export interface DropTarget {
   index: number;

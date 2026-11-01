@@ -1,4 +1,4 @@
-import type { PageSize } from "@vitropdf/engine";
+import type { PageSize } from "@prysmastudio/engine";
 import { Icon } from "./Icon.tsx";
 
 export type ThumbState = "loading" | "ready" | "missing" | "locked";

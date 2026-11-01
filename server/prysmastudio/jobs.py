@@ -149,7 +149,7 @@ class JobManager:
 
     async def start(self) -> None:
         self._settings.work_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self._sweeper = asyncio.create_task(self._sweep_forever(), name="vitropdf-sweeper")
+        self._sweeper = asyncio.create_task(self._sweep_forever(), name="prysma-sweeper")
 
     async def stop(self) -> None:
         if self._sweeper:
@@ -191,7 +191,7 @@ class JobManager:
             expires_at=now + self._settings.job_ttl_seconds,
         )
         self._jobs[job.id] = job
-        job.task = asyncio.create_task(self._run(job), name=f"vitropdf-{job.id}")
+        job.task = asyncio.create_task(self._run(job), name=f"prysma-{job.id}")
         return job, token
 
     def get(self, job_id: str, token: str | None) -> Job:

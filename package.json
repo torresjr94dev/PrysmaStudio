@@ -1,5 +1,5 @@
 {
-  "name": "vitropdf",
+  "name": "prysmastudio",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@12.3.4",
@@ -7,8 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm --filter @vitropdf/web dev",
-    "build": "pnpm --filter @vitropdf/web build",
+    "dev": "pnpm --filter @prysmastudio/web dev",
+    "build": "pnpm --filter @prysmastudio/web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   }

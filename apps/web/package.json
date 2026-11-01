@@ -1,5 +1,5 @@
 {
-  "name": "@vitropdf/web",
+  "name": "@prysmastudio/web",
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
@@ -12,7 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@vitropdf/engine": "workspace:*",
+    "@prysmastudio/engine": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

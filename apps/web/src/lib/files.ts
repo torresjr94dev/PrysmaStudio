@@ -1,4 +1,4 @@
-import type { InputFile } from "@vitropdf/engine";
+import type { InputFile } from "@prysmastudio/engine";
 
 export async function toInput(file: File): Promise<InputFile> {
   return { name: file.name, bytes: await file.arrayBuffer() };

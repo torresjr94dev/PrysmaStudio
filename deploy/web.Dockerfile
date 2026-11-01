@@ -14,7 +14,7 @@ COPY packages/engine packages/engine
 COPY apps/web apps/web
 ARG VITE_SOURCE_URL
 ENV VITE_SOURCE_URL=${VITE_SOURCE_URL}
-RUN pnpm --filter @vitropdf/web build
+RUN pnpm --filter @prysmastudio/web build
 # Precompresión: el WASM pasa de 10 MB a ~3.6 MB en brotli sin gastar CPU por petición.
 RUN find apps/web/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.wasm' -o -name '*.svg' -o -name '*.webmanifest' \) \
       -exec brotli --keep --best {} \; -exec gzip --keep --best {} \;

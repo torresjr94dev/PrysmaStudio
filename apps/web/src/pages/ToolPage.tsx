@@ -1,4 +1,4 @@
-import { EngineFailure, type EngineMetrics, type InputFile } from "@vitropdf/engine";
+import { EngineFailure, type EngineMetrics, type InputFile } from "@prysmastudio/engine";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FileCard, SlotPicker } from "../components/FileCard.tsx";
 import { FileGrid, type FileIssue, type FileItem } from "../components/FileGrid.tsx";
@@ -15,7 +15,7 @@ import { linkHandler, useDocumentTitle } from "../lib/router.ts";
 import { ServerFailure, runServerJob, type Capabilities } from "../lib/server.ts";
 import { acceptOf, splitCuts, type EditSummary, type PageItem, type Tool, type Values, type WorkInput } from "../tools/registry.ts";
 
-const ACCESS_KEY_STORAGE = "vitropdf:access-key";
+const ACCESS_KEY_STORAGE = "prysma:access-key";
 
 type Phase =
   | { kind: "idle" }
@@ -51,7 +51,7 @@ interface Props {
 }
 
 export function ToolPage({ tool, capabilities }: Props) {
-  useDocumentTitle(`${tool.title} · vitroPDF`);
+  useDocumentTitle(`${tool.title} · PrysmaStudio`);
   const workspace = tool.workspace;
   const accept = acceptOf(tool);
 
@@ -282,7 +282,7 @@ export function ToolPage({ tool, capabilities }: Props) {
     ) : (
       <p className="privacy is-server">
         <Icon name="cloud" size={16} />
-        Se sube a tu servidor vitroPDF y se borra al terminar.
+        Se sube a tu servidor PrysmaStudio y se borra al terminar.
       </p>
     );
 
@@ -294,7 +294,7 @@ export function ToolPage({ tool, capabilities }: Props) {
   ) : !serverReady ? (
     <p className="notice is-warning" role="status">
       <Icon name="alert" size={18} />
-      <span>El servidor de vitroPDF no está disponible, así que esta herramienta no se puede usar ahora.</span>
+      <span>El servidor de PrysmaStudio no está disponible, así que esta herramienta no se puede usar ahora.</span>
     </p>
   ) : null;
 

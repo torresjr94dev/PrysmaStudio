@@ -1,5 +1,5 @@
 /* ==========================================================================
-   vitroPDF · hoja de estilos
+   PrysmaStudio · hoja de estilos
    Todo valor visual sale de los tokens de :root. Para aplicar el diseño final
    se cambian los tokens (y las fuentes en /public/fonts), no los componentes.
    Restricción de la CSP: fuentes e imágenes solo del mismo origen (nada de CDN).
@@ -1394,6 +1394,9 @@ progress::-moz-progress-bar {
   position: absolute;
   inset: var(--space-3);
   display: grid;
+  /* Pistas de tamaño definido: con la fila en «auto», el max-height: 100% de los hijos se calcula contra
+     una altura indefinida, se ignora, y una foto vertical se sale de la tarjeta. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
 }
 
@@ -1571,14 +1574,15 @@ progress::-moz-progress-bar {
   animation: pop-in var(--duration-fast) var(--ease);
 }
 
+/* Abajo al centro: arriba chocarían con la palomita de selección (izquierda) y el número de orden. */
 .page-actions {
   position: absolute;
-  top: var(--space-1);
-  right: var(--space-1);
+  bottom: var(--space-1);
+  left: 50%;
   display: flex;
   gap: var(--space-1);
   opacity: 0;
-  transform: translateY(-2px);
+  transform: translate(-50%, 2px);
   transition:
     opacity var(--duration-fast) var(--ease),
     transform var(--duration-fast) var(--ease);
@@ -1589,7 +1593,7 @@ progress::-moz-progress-bar {
 .file-tile:hover .page-actions,
 .file-tile:focus-within .page-actions {
   opacity: 1;
-  transform: none;
+  transform: translate(-50%, 0);
 }
 
 .tile-button {
@@ -2142,9 +2146,9 @@ progress::-moz-progress-bar {
     overflow: visible;
   }
 
+  /* Con el panel debajo del área de trabajo, un pie fijo tapaba los avisos: aquí va en el flujo normal. */
   .sidebar-footer {
-    position: sticky;
-    bottom: 0;
+    position: static;
     margin: 0 calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   }
@@ -2201,14 +2205,14 @@ progress::-moz-progress-bar {
   /* En táctil no hay hover: las acciones de cada página siempre visibles. */
   .page-actions {
     opacity: 1;
-    transform: none;
+    transform: translate(-50%, 0);
   }
 }
 
 @media (hover: none) {
   .page-actions {
     opacity: 1;
-    transform: none;
+    transform: translate(-50%, 0);
   }
 
   .cut-button {

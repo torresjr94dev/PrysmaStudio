@@ -30,7 +30,7 @@ function toolsFor(files: File[], tools: Tool[]): Tool[] {
 const ALL_ACCEPT = "application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf";
 
 export function Home({ capabilities }: { capabilities: Capabilities | null | undefined }) {
-  useDocumentTitle("vitroPDF · Herramientas PDF que no suben tus archivos");
+  useDocumentTitle("PrysmaStudio · Herramientas PDF que no suben tus archivos");
   const [query, setQuery] = useState("");
   const [dropped, setDropped] = useState<File[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -95,7 +95,8 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
           <kbd aria-hidden="true">/</kbd>
         </div>
         <button type="button" className="button is-ghost" onClick={picker.open}>
-          <Icon name="upload" size={18} />o elige archivos y te sugerimos herramientas
+          <Icon name="upload" size={18} />
+          Elegir archivos y ver qué puedo hacer
         </button>
         {picker.input}
       </section>
@@ -131,7 +132,7 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
         );
       })}
 
-      <section className="features" aria-label="Por qué vitroPDF">
+      <section className="features" aria-label="Por qué PrysmaStudio">
         <div className="feature">
           <Icon name="laptop" size={22} />
           <h3>Se procesa en tu equipo</h3>

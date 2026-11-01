@@ -156,6 +156,8 @@ function compressOnce(input: InputFile, policy: ImagePolicy | null, warnings: st
 }
 
 function formatMB(bytes: number): string {
+  // Por debajo de 1 MB, «0.04 MB» se lee peor que «41 KB».
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 

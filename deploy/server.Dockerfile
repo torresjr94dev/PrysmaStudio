@@ -8,12 +8,12 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 COPY server/pyproject.toml server/uv.lock ./
 RUN uv sync --frozen --no-dev --extra ocr
-COPY server/vitropdf ./vitropdf
-RUN groupadd --system --gid 10001 vitropdf \
- && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin vitropdf
+COPY server/prysmastudio ./prysmastudio
+RUN groupadd --system --gid 10001 prysma \
+ && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin prysma
 USER 10001
-ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 VITROPDF_WORK_DIR=/work
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PRYSMA_WORK_DIR=/work
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/health', timeout=3)"]
-CMD ["python", "-m", "vitropdf.main"]
+CMD ["python", "-m", "prysmastudio.main"]

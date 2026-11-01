@@ -37,14 +37,14 @@ def _bool(name: str, default: bool) -> bool:
 
 
 def _access_key_hashes() -> frozenset[str]:
-    raw = os.environ.get("VITROPDF_ACCESS_KEYS_SHA256", "").strip()
+    raw = os.environ.get("PRYSMA_ACCESS_KEYS_SHA256", "").strip()
     if raw == "":
         return frozenset()
     hashes = {item.strip().lower() for item in raw.split(",") if item.strip()}
     invalid = [item for item in hashes if not _SHA256_HEX.match(item)]
     if invalid:
         raise ConfigError(
-            "VITROPDF_ACCESS_KEYS_SHA256 debe contener hashes SHA-256 en hexadecimal separados por comas"
+            "PRYSMA_ACCESS_KEYS_SHA256 debe contener hashes SHA-256 en hexadecimal separados por comas"
         )
     return frozenset(hashes)
 
@@ -70,22 +70,22 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        gotenberg = os.environ.get("VITROPDF_GOTENBERG_URL", "").strip().rstrip("/")
+        gotenberg = os.environ.get("PRYSMA_GOTENBERG_URL", "").strip().rstrip("/")
         if gotenberg and not re.match(r"^https?://[A-Za-z0-9.\-]+(:\d{1,5})?$", gotenberg):
-            raise ConfigError("VITROPDF_GOTENBERG_URL debe ser una URL http(s)://host[:puerto] sin ruta")
+            raise ConfigError("PRYSMA_GOTENBERG_URL debe ser una URL http(s)://host[:puerto] sin ruta")
 
-        work_dir = Path(os.environ.get("VITROPDF_WORK_DIR", "/work"))
+        work_dir = Path(os.environ.get("PRYSMA_WORK_DIR", "/work"))
         return cls(
             work_dir=work_dir,
-            max_upload_bytes=_int("VITROPDF_MAX_UPLOAD_MB", 100, 1, 2048) * 1024 * 1024,
-            max_pages=_int("VITROPDF_MAX_PAGES", 300, 1, 10_000),
-            max_concurrent_jobs=_int("VITROPDF_MAX_CONCURRENT_JOBS", 2, 1, 64),
-            max_pending_jobs=_int("VITROPDF_MAX_PENDING_JOBS", 20, 1, 1000),
-            job_ttl_seconds=_int("VITROPDF_JOB_TTL_SECONDS", 3600, 60, 86_400),
-            job_timeout_seconds=_int("VITROPDF_JOB_TIMEOUT_SECONDS", 600, 10, 7200),
+            max_upload_bytes=_int("PRYSMA_MAX_UPLOAD_MB", 100, 1, 2048) * 1024 * 1024,
+            max_pages=_int("PRYSMA_MAX_PAGES", 300, 1, 10_000),
+            max_concurrent_jobs=_int("PRYSMA_MAX_CONCURRENT_JOBS", 2, 1, 64),
+            max_pending_jobs=_int("PRYSMA_MAX_PENDING_JOBS", 20, 1, 1000),
+            job_ttl_seconds=_int("PRYSMA_JOB_TTL_SECONDS", 3600, 60, 86_400),
+            job_timeout_seconds=_int("PRYSMA_JOB_TIMEOUT_SECONDS", 600, 10, 7200),
             gotenberg_url=gotenberg or None,
             access_key_hashes=_access_key_hashes(),
-            trust_proxy=_bool("VITROPDF_TRUST_PROXY", False),
-            jobs_per_minute_per_ip=_int("VITROPDF_JOBS_PER_MINUTE_PER_IP", 10, 1, 10_000),
-            ocr_threads=_int("VITROPDF_OCR_THREADS", 2, 1, 64),
+            trust_proxy=_bool("PRYSMA_TRUST_PROXY", False),
+            jobs_per_minute_per_ip=_int("PRYSMA_JOBS_PER_MINUTE_PER_IP", 10, 1, 10_000),
+            ocr_threads=_int("PRYSMA_OCR_THREADS", 2, 1, 64),
         )

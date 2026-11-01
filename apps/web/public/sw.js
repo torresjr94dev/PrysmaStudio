@@ -1,7 +1,7 @@
-// Service worker de vitroPDF: caché en tiempo de ejecución, sin precarga.
+// Service worker de PrysmaStudio: caché en tiempo de ejecución, sin precarga.
 // Los datos móviles en México son caros: el motor (~4.8 MB comprimido) solo se descarga
 // cuando alguien usa una herramienta, y desde ahí funciona sin conexión.
-const CACHE = "vitropdf-v2";
+const CACHE = "prysma-v1";
 /** Cada deploy deja ~10 archivos con hash nuevos; sin tope, la caché crecería para siempre. */
 const MAX_ASSETS = 80;
 

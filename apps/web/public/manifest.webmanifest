@@ -1,6 +1,6 @@
 {
-  "name": "vitroPDF",
-  "short_name": "vitroPDF",
+  "name": "PrysmaStudio",
+  "short_name": "PrysmaStudio",
   "description": "Herramientas PDF que trabajan en tu dispositivo.",
   "lang": "es-MX",
   "start_url": "/",

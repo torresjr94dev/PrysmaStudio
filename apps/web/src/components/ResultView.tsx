@@ -1,4 +1,4 @@
-import type { EngineMetrics } from "@vitropdf/engine";
+import type { EngineMetrics } from "@prysmastudio/engine";
 import { useState } from "react";
 import { downloadBlob, formatBytes, pluralize } from "../lib/files.ts";
 import { zipFiles } from "../lib/zip.ts";

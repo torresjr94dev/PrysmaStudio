@@ -1,4 +1,4 @@
-import { EngineFailure, type PageSize } from "@vitropdf/engine";
+import { EngineFailure, type PageSize } from "@prysmastudio/engine";
 import { useEffect, useState } from "react";
 import { previewEngine } from "./engine.ts";
 import { isPdf } from "./files.ts";

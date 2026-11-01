@@ -1,4 +1,4 @@
-import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn } from "@vitropdf/engine";
+import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn } from "@prysmastudio/engine";
 import type { IconName } from "../components/Icon.tsx";
 import type { ServerStep } from "../lib/server.ts";
 
