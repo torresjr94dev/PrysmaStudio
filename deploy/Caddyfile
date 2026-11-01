@@ -3,8 +3,6 @@
 }
 
 {$VITROPDF_DOMAIN} {
-	encode zstd gzip
-
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		# La promesa "tu archivo no sale de tu equipo" se puede auditar aquí: connect-src solo permite este origen.
@@ -29,6 +27,9 @@
 	}
 
 	handle {
+		# Compresión SOLO para estáticos. En /v1 rompería el SSE: el compresor retiene los eventos de
+		# progreso en su búfer y el navegador deja de verlos en vivo (las respuestas JSON son pequeñas).
+		encode zstd gzip
 		root * /srv
 		@immutable path /assets/*
 		header @immutable Cache-Control "public, max-age=31536000, immutable"

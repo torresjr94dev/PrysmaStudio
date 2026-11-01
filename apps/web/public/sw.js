@@ -1,7 +1,9 @@
 // Service worker de vitroPDF: caché en tiempo de ejecución, sin precarga.
-// Los datos móviles en México son caros: el motor (~3.6 MB comprimido) solo se descarga
+// Los datos móviles en México son caros: el motor (~4.8 MB comprimido) solo se descarga
 // cuando alguien usa una herramienta, y desde ahí funciona sin conexión.
-const CACHE = "vitropdf-v1";
+const CACHE = "vitropdf-v2";
+/** Cada deploy deja ~10 archivos con hash nuevos; sin tope, la caché crecería para siempre. */
+const MAX_ASSETS = 80;
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -17,20 +19,39 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-async function cacheFirst(request) {
+/** Borra los assets más antiguos (Cache conserva el orden de inserción). */
+async function trimAssets(cache) {
+  const assets = (await cache.keys()).filter((request) => new URL(request.url).pathname.startsWith("/assets/"));
+  const excess = assets.length - MAX_ASSETS;
+  if (excess > 0) await Promise.all(assets.slice(0, excess).map((request) => cache.delete(request)));
+}
+
+/**
+ * La respuesta se devuelve DE INMEDIATO y la copia se guarda en paralelo con waitUntil.
+ * Regresión: esperar a cache.put() antes de devolver bloqueaba la descarga del WASM (10 MB) durante
+ * minutos — la rama clonada llenaba su búfer mientras nadie consumía la original.
+ */
+async function cacheFirst(event) {
   const cache = await caches.open(CACHE);
-  const cached = await cache.match(request);
+  const cached = await cache.match(event.request);
   if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) await cache.put(request, response.clone());
+  const response = await fetch(event.request);
+  if (response.ok) {
+    event.waitUntil(
+      cache
+        .put(event.request, response.clone())
+        .then(() => trimAssets(cache))
+        .catch(() => undefined),
+    );
+  }
   return response;
 }
 
-async function networkFirstPage(request) {
+async function networkFirstPage(event) {
   const cache = await caches.open(CACHE);
   try {
-    const response = await fetch(request);
-    if (response.ok) await cache.put("/index.html", response.clone());
+    const response = await fetch(event.request);
+    if (response.ok) event.waitUntil(cache.put("/index.html", response.clone()).catch(() => undefined));
     return response;
   } catch (error) {
     const cached = await cache.match("/index.html");
@@ -48,8 +69,8 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/assets/")) {
     // Archivos con hash en el nombre: inmutables.
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(event));
   } else if (request.mode === "navigate") {
-    event.respondWith(networkFirstPage(request));
+    event.respondWith(networkFirstPage(event));
   }
 });
