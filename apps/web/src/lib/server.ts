@@ -116,7 +116,8 @@ async function followEvents(
       }
     }
   } finally {
-    reader.releaseLock();
+    // Cierra el stream explícitamente: soltar el lock lo dejaría abierto hasta que el navegador lo aborte.
+    await reader.cancel().catch(() => undefined);
   }
   throw new ServerFailure("internal", "Se perdió la conexión con el servidor.", 0);
 }
