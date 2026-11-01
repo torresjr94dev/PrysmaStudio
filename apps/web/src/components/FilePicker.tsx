@@ -1,3 +1,4 @@
+import { useAnimate } from "motion/react";
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { matchesAccept } from "../lib/files.ts";
 import { isFileDrag } from "../lib/sortable.ts";
@@ -46,22 +47,46 @@ interface DropzoneProps extends PickerOptions {
   children?: ReactNode;
 }
 
-/** Estado vacío de una herramienta: zona grande de clic o arrastre. */
+/**
+ * Estado vacío de una herramienta: zona grande de clic o arrastre. Mientras hay un arrastre encima, un
+ * haz de luz recorre el borde; si se suelta un tipo que no acepta, tiembla y destella en rojo apagado.
+ */
 export function Dropzone({ title, hint, buttonLabel, children, ...options }: DropzoneProps) {
   const [over, setOver] = useState(false);
-  const picker = useFilePicker(options);
+  const [rejected, setRejected] = useState(false);
+  const [scope, animate] = useAnimate<HTMLDivElement>();
+  const timer = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const flash = () => {
+    setRejected(true);
+    void animate(scope.current, { x: [0, -8, 8, -5, 5, 0] }, { duration: 0.35, ease: "easeOut" });
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setRejected(false), 600);
+  };
+
+  const delivery: PickerOptions = {
+    ...options,
+    onRejected: (count) => {
+      if (count > 0) flash();
+      options.onRejected?.(count);
+    },
+  };
+  const picker = useFilePicker(delivery);
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     if (!isFileDrag(event)) return;
     event.preventDefault();
     event.stopPropagation();
     setOver(false);
-    deliverFiles(Array.from(event.dataTransfer.files), options);
+    deliverFiles(Array.from(event.dataTransfer.files), delivery);
   };
 
   return (
     <div
-      className={`dropzone${over ? " is-over" : ""}`}
+      ref={scope}
+      className={`dropzone${over ? " is-over" : ""}${rejected ? " is-rejected" : ""}`}
       onDragOver={(event) => {
         if (!isFileDrag(event)) return;
         event.preventDefault();
@@ -73,6 +98,7 @@ export function Dropzone({ title, hint, buttonLabel, children, ...options }: Dro
       }}
       onDrop={onDrop}
     >
+      <span className="beam" aria-hidden="true" />
       <span className="dropzone-icon">
         <Icon name="upload" size={28} />
       </span>
@@ -162,6 +188,7 @@ export function DropOverlay({ active, label }: { active: boolean; label: string 
   return (
     <div className="drop-overlay" aria-hidden="true">
       <div className="drop-overlay-card">
+        <span className="beam" />
         <Icon name="upload" size={32} />
         <p>{label}</p>
       </div>

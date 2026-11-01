@@ -49,7 +49,7 @@ export function FileCard({ file, preview, onReplace, disabled, compact = false }
           {file.name}
         </p>
         <p className="file-card-meta">{details.join(" · ")}</p>
-        <button type="button" className="button is-ghost" onClick={onReplace} disabled={disabled}>
+        <button type="button" className="button is-secondary" onClick={onReplace} disabled={disabled}>
           Cambiar archivo
         </button>
       </div>

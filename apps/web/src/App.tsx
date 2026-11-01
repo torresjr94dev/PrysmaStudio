@@ -1,4 +1,6 @@
+import { MotionConfig } from "motion/react";
 import { useEffect, useState } from "react";
+import { Toaster } from "sonner";
 import { usePreventFileNavigation } from "./components/FilePicker.tsx";
 import { ToolMenu } from "./components/ToolMenu.tsx";
 import { linkHandler, usePath, useDocumentTitle } from "./lib/router.ts";
@@ -42,14 +44,15 @@ export function App() {
   const sourceUrl = import.meta.env.VITE_SOURCE_URL;
 
   return (
-    <>
+    // reducedMotion="user": con «reducir movimiento» activado, motion omite transform y layout.
+    <MotionConfig reducedMotion="user">
       <a href="#contenido" className="skip-link">
         Saltar al contenido
       </a>
       <header className="site-header">
         <div className="site-header-inner">
           <a href="/" className="brand" onClick={linkHandler("/")}>
-            <img src="/icon.svg" alt="" width={28} height={28} />
+            <img src="/icon.svg" alt="" width={24} height={24} />
             PrysmaStudio
           </a>
           <ToolMenu capabilities={capabilities} currentSlug={slug} />
@@ -72,6 +75,8 @@ export function App() {
           )}
         </p>
       </footer>
-    </>
+      {/* theme="system": sigue prefers-color-scheme; los colores los ponen los tokens en styles.css. */}
+      <Toaster theme="system" position="bottom-right" offset={20} duration={4000} visibleToasts={4} gap={10} />
+    </MotionConfig>
   );
 }

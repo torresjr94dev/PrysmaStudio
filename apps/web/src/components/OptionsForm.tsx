@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useId, useState } from "react";
 import type { Field, Values } from "../tools/registry.ts";
 import { Icon } from "./Icon.tsx";
@@ -33,13 +34,20 @@ function FieldControl({ field, values, onChange, disabled }: { field: Field; val
         <fieldset className="field" disabled={disabled} aria-describedby={hintId}>
           <legend>{field.label}</legend>
           <div className={field.layout === "cards" ? "choice-cards" : "segmented"} role="radiogroup">
-            {field.options.map((option) => (
-              <label key={option.value} className={field.layout === "cards" ? "choice-card" : "segment"}>
-                <input type="radio" name={id} value={option.value} checked={text === option.value} onChange={() => set(option.value)} />
-                <span className="choice-label">{option.label}</span>
-                {field.layout === "cards" && option.description && <span className="choice-description">{option.description}</span>}
-              </label>
-            ))}
+            {field.options.map((option) => {
+              const checked = text === option.value;
+              return (
+                <label key={option.value} className={field.layout === "cards" ? "choice-card" : "segment"}>
+                  <input type="radio" name={id} value={option.value} checked={checked} onChange={() => set(option.value)} />
+                  {/* El fondo activo es un solo elemento que se desliza entre opciones (layoutId). */}
+                  {field.layout === "segmented" && checked && (
+                    <motion.span className="segment-indicator" layoutId={`${id}-indicator`} transition={{ type: "spring", stiffness: 380, damping: 30 }} aria-hidden="true" />
+                  )}
+                  <span className="choice-label">{option.label}</span>
+                  {field.layout === "cards" && option.description && <span className="choice-description">{option.description}</span>}
+                </label>
+              );
+            })}
           </div>
           {hint}
         </fieldset>

@@ -1,4 +1,4 @@
-import { expect, makeEncryptedPdf, makePdf, makePng, readPdf, saveDownload, test } from "./fixtures.ts";
+import { dragSort, expect, makeEncryptedPdf, makePdf, makePng, readPdf, saveDownload, test } from "./fixtures.ts";
 
 test("unir: miniaturas, arrastrar para ordenar y el resultado respeta el orden", async ({ page }) => {
   await page.goto("/unir-pdf");
@@ -8,7 +8,7 @@ test("unir: miniaturas, arrastrar para ordenar y el resultado respeta el orden",
   await expect(tiles.first()).toContainText("2 páginas");
   await expect(page.locator(".file-grid img")).toHaveCount(2);
 
-  await tiles.nth(1).dragTo(tiles.nth(0), { targetPosition: { x: 8, y: 80 } });
+  await dragSort(page, tiles.nth(1), tiles.nth(0));
   await expect(tiles.first()).toContainText("B.pdf");
 
   const download = page.waitForEvent("download");

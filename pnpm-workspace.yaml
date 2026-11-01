@@ -7,3 +7,8 @@ minimumReleaseAge: 20160
 
 # Ningún paquete ejecuta scripts de instalación salvo que se liste aquí explícitamente.
 onlyBuiltDependencies: []
+
+# Sonner inyecta su CSS con un <style> inline que la CSP (style-src 'self') bloquea; el parche quita esa
+# inyección y la hoja se importa desde sonner/dist/styles.css en el bundle.
+patchedDependencies:
+  sonner@2.0.8: patches/sonner@2.0.8.patch

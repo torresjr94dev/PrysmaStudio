@@ -1,4 +1,5 @@
 import type { EngineMetrics } from "@prysmastudio/engine";
+import { motion } from "motion/react";
 import { useState } from "react";
 import { downloadBlob, formatBytes, pluralize } from "../lib/files.ts";
 import { zipFiles } from "../lib/zip.ts";
@@ -37,7 +38,13 @@ function Savings({ metrics }: { metrics: EngineMetrics }) {
       <div className="savings-row">
         <span>Después</span>
         <span className="savings-bar">
-          <span className="savings-fill" style={{ width: `${Math.max(2, ratio * 100)}%` }} />
+          {/* Se llena de izquierda a derecha una vez que la tarjeta terminó de expandirse. */}
+          <motion.span
+            className="savings-fill"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: Math.max(0.02, ratio) }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+          />
         </span>
         <strong>{formatBytes(metrics.outputBytes)}</strong>
       </div>
@@ -46,6 +53,10 @@ function Savings({ metrics }: { metrics: EngineMetrics }) {
   );
 }
 
+/**
+ * Pantalla de éxito. Comparte `layoutId` con la tarjeta de progreso del panel: al terminar, esa tarjeta
+ * se expande y se convierte en esta lista de descarga en lugar de aparecer de la nada.
+ */
 export function ResultView({ results, warnings, metrics, zipName, onDownload, onEdit, onRestart }: Props) {
   const save = (blob: Blob, name: string) => {
     downloadBlob(blob, name);
@@ -68,7 +79,15 @@ export function ResultView({ results, warnings, metrics, zipName, onDownload, on
   };
 
   return (
-    <section className="result" aria-labelledby="result-title">
+    <motion.section
+      className="result"
+      layoutId="job-card"
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ layout: { type: "spring", stiffness: 260, damping: 26, mass: 1.2 }, opacity: { duration: 0.3, delay: 0.1 } }}
+      aria-labelledby="result-title"
+    >
       <div className="result-hero">
         <span className="result-icon">
           <Icon name="check" size={28} />
@@ -130,6 +149,6 @@ export function ResultView({ results, warnings, metrics, zipName, onDownload, on
         <Icon name="shield" size={16} />
         Los resultados solo existen en esta pestaña. Descárgalos antes de cerrarla.
       </p>
-    </section>
+    </motion.section>
   );
 }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { CommandMenu } from "../components/CommandMenu.tsx";
 import { DropOverlay, useFilePicker, useWindowFileDrop } from "../components/FilePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { matchesAccept, pluralize } from "../lib/files.ts";
@@ -6,10 +7,6 @@ import { handOffFiles } from "../lib/handoff.ts";
 import { linkHandler, navigate, useDocumentTitle } from "../lib/router.ts";
 import type { Capabilities } from "../lib/server.ts";
 import { CATEGORIES, acceptOf, availableTools, type Tool } from "../tools/registry.ts";
-
-function normalize(text: string): string {
-  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-}
 
 /** Herramientas que pueden recibir exactamente estos archivos. */
 function toolsFor(files: File[], tools: Tool[]): Tool[] {
@@ -29,23 +26,34 @@ function toolsFor(files: File[], tools: Tool[]): Tool[] {
 
 const ALL_ACCEPT = "application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf";
 
+/** El foco de luz de cada tarjeta sigue al cursor: una sola escucha por cuadrícula y dos variables CSS. */
+function trackSpotlight(event: PointerEvent<HTMLElement>): void {
+  const card = (event.target as HTMLElement).closest<HTMLElement>(".tool-card");
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  card.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+  card.style.setProperty("--my", `${event.clientY - rect.top}px`);
+}
+
 export function Home({ capabilities }: { capabilities: Capabilities | null | undefined }) {
   useDocumentTitle("PrysmaStudio · Herramientas PDF que no suben tus archivos");
-  const [query, setQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [dropped, setDropped] = useState<File[]>([]);
-  const searchRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const tools = availableTools(capabilities);
   const dropActive = useWindowFileDrop(setDropped, true);
   const picker = useFilePicker({ accept: ALL_ACCEPT, multiple: true, onFiles: setDropped });
 
+  // «/» o Ctrl/⌘+K abren la paleta desde cualquier parte, salvo mientras se escribe en un campo.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing = target?.closest("input, textarea, select, [contenteditable]");
-      if (event.key === "/" && !typing) {
+      const slash = event.key === "/" && !typing;
+      const commandK = event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey);
+      if (slash || commandK) {
         event.preventDefault();
-        searchRef.current?.focus();
+        setMenuOpen(true);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -59,8 +67,6 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
     if (dropped.length === 0 && dialog.open) dialog.close();
   }, [dropped]);
 
-  const terms = normalize(query.trim());
-  const matches = terms ? tools.filter((tool) => normalize(`${tool.title} ${tool.summary}`).includes(terms)) : tools;
   const suggestions = toolsFor(dropped, tools);
 
   const openWith = (tool: Tool) => {
@@ -73,8 +79,8 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
     <>
       <DropOverlay active={dropActive} label="Suelta tus archivos y elige qué hacer con ellos" />
       <section className="home-hero">
-        <p className="eyebrow">
-          <Icon name="shield" size={16} />
+        <p className="chip is-success">
+          <span className="chip-dot" aria-hidden="true" />
           Tus archivos nunca salen de tu equipo
         </p>
         <h1>Todo lo que necesitas para tus PDF, sin subirlos a ningún lado</h1>
@@ -82,34 +88,26 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
           Une, divide, comprime y protege documentos directamente en tu navegador. Sin registro y sin límites. Arrastra un
           archivo a esta página para empezar.
         </p>
-        <div className="home-search">
+        <button type="button" className="search-trigger" onClick={() => setMenuOpen(true)}>
           <Icon name="search" size={20} />
-          <input
-            ref={searchRef}
-            type="search"
-            placeholder="Buscar herramienta…"
-            aria-label="Buscar herramienta"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <span>Buscar herramienta…</span>
           <kbd aria-hidden="true">/</kbd>
-        </div>
-        <button type="button" className="button is-ghost" onClick={picker.open}>
+          <span className="beam" aria-hidden="true" />
+        </button>
+        <button type="button" className="button is-secondary" onClick={picker.open}>
           <Icon name="upload" size={18} />
           Elegir archivos y ver qué puedo hacer
         </button>
         {picker.input}
       </section>
 
-      {matches.length === 0 && <p className="empty-search">Ninguna herramienta coincide con «{query}».</p>}
-
       {CATEGORIES.map((category) => {
-        const items = matches.filter((tool) => tool.category === category.id);
+        const items = tools.filter((tool) => tool.category === category.id);
         if (items.length === 0) return null;
         return (
           <section key={category.id} className="tool-section" aria-labelledby={`cat-${category.id}`}>
             <h2 id={`cat-${category.id}`}>{category.title}</h2>
-            <ul className="tool-grid">
+            <ul className="tool-grid" onPointerMove={trackSpotlight}>
               {items.map((tool) => (
                 <li key={tool.slug}>
                   <a href={`/${tool.slug}`} className="tool-card" onClick={linkHandler(`/${tool.slug}`)}>
@@ -119,8 +117,8 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
                     <span className="tool-title">{tool.title}</span>
                     <span className="tool-summary">{tool.summary}</span>
                     {tool.runtime === "server" && (
-                      <span className="tool-tag">
-                        <Icon name="cloud" size={14} />
+                      <span className="chip is-warning tool-tag">
+                        <span className="chip-dot" aria-hidden="true" />
                         Usa tu servidor
                       </span>
                     )}
@@ -149,6 +147,8 @@ export function Home({ capabilities }: { capabilities: Capabilities | null | und
           <p>INE por ambos lados, papel oficio y compresión al peso exacto que pide cada portal.</p>
         </div>
       </section>
+
+      <CommandMenu tools={tools} open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <dialog ref={dialogRef} className="dialog" aria-labelledby="pick-title" onClose={() => setDropped([])}>
         <div className="dialog-header">

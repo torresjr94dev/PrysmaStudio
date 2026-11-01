@@ -17,7 +17,9 @@ const LETTER: PageSize = { width: 612, height: 792 };
 
 /**
  * Hoja dentro de un marco cuadrado. Como el marco es cuadrado, el lado mayor de la hoja cabe en
- * cualquier orientación: el tamaño no depende del giro y la transición solo anima `transform`.
+ * cualquier orientación: el tamaño no depende del giro y la transición solo anima `transform`
+ * (con perspectiva y un resorte sin rebote, ver --ease-spring). Una hoja bloqueada se funde a la mitad
+ * y un candado con cristal la cubre.
  */
 export function Thumb({ size = LETTER, turns = 0, src, state, fallback }: Props) {
   const longest = Math.max(size.width, size.height, 1);
@@ -34,16 +36,19 @@ export function Thumb({ size = LETTER, turns = 0, src, state, fallback }: Props)
       >
         {state === "ready" && src ? (
           <img src={src} alt="" draggable={false} decoding="async" />
-        ) : state === "locked" ? (
-          <span className="thumb-fallback">
-            <Icon name="lock" size={22} />
-          </span>
-        ) : state === "missing" ? (
-          <span className="thumb-fallback">{fallback}</span>
-        ) : (
+        ) : state === "loading" ? (
           <span className="thumb-skeleton" />
+        ) : (
+          <span className="thumb-fallback">{fallback}</span>
         )}
       </div>
+      {state === "locked" && (
+        <span className="thumb-lock" aria-hidden="true">
+          <span>
+            <Icon name="lock" size={18} />
+          </span>
+        </span>
+      )}
     </div>
   );
 }

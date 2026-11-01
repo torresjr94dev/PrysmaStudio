@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useRef } from "react";
 import { extensionOf, formatBytes, isPdf, pluralize } from "../lib/files.ts";
-import { useDocumentPreview, useObjectUrl } from "../lib/preview.ts";
-import { moveItems, useSortable } from "../lib/sortable.ts";
+import { useDocumentPreview, useObjectUrl, type DocumentPreview } from "../lib/preview.ts";
+import { moveItems } from "../lib/sortable.ts";
 import { Icon } from "./Icon.tsx";
 import { ToolbarButton } from "./PageGrid.tsx";
+import { SortableGrid, useSortableTile } from "./Sortable.tsx";
 import { Thumb } from "./Thumb.tsx";
 
 export interface FileItem {
@@ -25,11 +27,8 @@ interface Props {
 
 export function FileGrid({ items, onItemsChange, onAddMore, onIssue, noun, disabled }: Props) {
   const keys = items.map((item) => item.key);
-  const sortable = useSortable({
-    keys,
-    disabled,
-    onMove: (moving, insertAt) => onItemsChange(moveItems(items, (item) => item.key, moving, insertAt)),
-  });
+  /** Copia visual de cada ficha para la capa de arrastre: así no se previsualiza el archivo dos veces. */
+  const snapshots = useRef(new Map<string, ReactNode>());
 
   const sortByName = (direction: 1 | -1) =>
     onItemsChange([...items].sort((a, b) => direction * a.file.name.localeCompare(b.file.name, "es-MX", { numeric: true })));
@@ -54,30 +53,53 @@ export function FileGrid({ items, onItemsChange, onAddMore, onIssue, noun, disab
         </div>
       </div>
       <p className="editor-hint">Arrástralos para cambiar el orden. También puedes enfocar uno y usar Alt+flechas.</p>
-      <ol className="file-grid" aria-label="Archivos en orden" {...sortable.containerProps}>
-        {items.map((item, index) => (
-          <FileTile
-            key={item.key}
-            item={item}
-            index={index}
-            total={items.length}
-            disabled={disabled}
-            onRemove={() => {
-              onIssue(item.key, null);
-              onItemsChange(items.filter((entry) => entry.key !== item.key));
-            }}
-            onMove={(delta) => move(index, delta)}
-            onIssue={(issue) => onIssue(item.key, issue)}
-            sortableProps={sortable.itemProps(item.key, index)}
-          />
-        ))}
-        <li className="file-tile is-add">
-          <button type="button" className="add-tile" onClick={onAddMore} disabled={disabled}>
-            <Icon name="plus" size={28} />
-            <span>Agregar {noun.many}</span>
-          </button>
-        </li>
-      </ol>
+      <SortableGrid
+        keys={keys}
+        disabled={disabled}
+        onMove={(moving, insertAt) => onItemsChange(moveItems(items, (item) => item.key, moving, insertAt))}
+        labelOf={(key) => {
+          const index = items.findIndex((item) => item.key === key);
+          const item = items[index];
+          return item ? `${index + 1}. ${item.file.name}` : noun.one;
+        }}
+        describe={(count) => pluralize(count, noun.one, noun.many)}
+        renderOverlay={(key) => {
+          const view = snapshots.current.get(key);
+          return view ? (
+            <div className="file-tile is-overlay" aria-hidden="true">
+              {view}
+            </div>
+          ) : null;
+        }}
+      >
+        <ol className="file-grid" aria-label="Archivos en orden">
+          {items.map((item, index) => (
+            <FileTile
+              key={item.key}
+              item={item}
+              index={index}
+              total={items.length}
+              disabled={disabled}
+              onRemove={() => {
+                onIssue(item.key, null);
+                onItemsChange(items.filter((entry) => entry.key !== item.key));
+              }}
+              onMove={(delta) => move(index, delta)}
+              onIssue={(issue) => onIssue(item.key, issue)}
+              onSnapshot={(node) => {
+                if (node) snapshots.current.set(item.key, node);
+                else snapshots.current.delete(item.key);
+              }}
+            />
+          ))}
+          <li className="file-tile is-add">
+            <button type="button" className="add-tile" onClick={onAddMore} disabled={disabled}>
+              <Icon name="plus" size={28} />
+              <span>Agregar {noun.many}</span>
+            </button>
+          </li>
+        </ol>
+      </SortableGrid>
     </div>
   );
 }
@@ -90,13 +112,14 @@ interface TileProps {
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
   onIssue: (issue: FileIssue | null) => void;
-  sortableProps: ReturnType<ReturnType<typeof useSortable>["itemProps"]>;
+  onSnapshot: (node: ReactNode | null) => void;
 }
 
-function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, sortableProps }: TileProps) {
+function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, onSnapshot }: TileProps) {
   const pdf = isPdf(item.file);
   const preview = useDocumentPreview(pdf ? item.file : null, "first");
   const imageUrl = useObjectUrl(pdf ? null : item.file);
+  const { setNodeRef, listeners, style, dimmed, justDropped } = useSortableTile(item.key, disabled);
 
   useEffect(() => {
     if (preview.status === "encrypted") onIssue("encrypted");
@@ -115,13 +138,27 @@ function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, sor
           ? `${pluralize(preview.pageCount, "página", "páginas")} · ${formatBytes(item.file.size)}`
           : formatBytes(item.file.size)
     : formatBytes(item.file.size);
+  const issue = preview.status === "encrypted" || preview.status === "error";
+  const view = { index, name: item.file.name, meta, pdf, preview, imageUrl, issue };
+
+  // La copia para la capa de arrastre se actualiza tras cada render y se retira al desmontar.
+  useEffect(() => {
+    onSnapshot(<FileTileView {...view} />);
+  });
+  useEffect(() => () => onSnapshot(null), []);
 
   return (
     <li
+      ref={setNodeRef}
+      style={style}
       className="file-tile"
       tabIndex={0}
       aria-label={`${index + 1}. ${item.file.name}, ${meta}`}
-      data-issue={preview.status === "encrypted" || preview.status === "error" ? "true" : undefined}
+      data-issue={issue ? "true" : undefined}
+      data-dragging={dimmed || undefined}
+      onClickCapture={(event) => {
+        if (justDropped()) event.stopPropagation();
+      }}
       onKeyDown={(event) => {
         if (disabled) return;
         if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowUp")) {
@@ -135,8 +172,39 @@ function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, sor
           onRemove();
         }
       }}
-      {...sortableProps}
+      {...listeners}
     >
+      <FileTileView
+        {...view}
+        actions={
+          !disabled && (
+            <div className="page-actions">
+              {index > 0 && <TileAction icon="arrowLeft" label="Mover antes" onClick={() => onMove(-1)} />}
+              <TileAction icon="trash" label="Quitar" onClick={onRemove} />
+            </div>
+          )
+        }
+      />
+      {total > 1 && <span className="visually-hidden">Posición {index + 1} de {total}</span>}
+    </li>
+  );
+}
+
+interface ViewProps {
+  index: number;
+  name: string;
+  meta: string;
+  pdf: boolean;
+  preview: DocumentPreview;
+  imageUrl: string | null;
+  issue: boolean;
+  actions?: ReactNode;
+}
+
+/** Contenido de la ficha, compartido por la cuadrícula y la capa de arrastre. */
+function FileTileView({ index, name, meta, pdf, preview, imageUrl, issue, actions }: ViewProps) {
+  return (
+    <>
       <span className="file-order" aria-hidden="true">
         {index + 1}
       </span>
@@ -146,7 +214,7 @@ function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, sor
             size={preview.pages[0]}
             src={preview.thumbnails[0]}
             state={preview.status === "encrypted" ? "locked" : preview.status === "error" ? "missing" : preview.thumbnails[0] ? "ready" : "loading"}
-            fallback={extensionOf(item.file.name) || "PDF"}
+            fallback={extensionOf(name) || "PDF"}
           />
         ) : imageUrl ? (
           <div className="thumb">
@@ -155,24 +223,18 @@ function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, sor
         ) : (
           <Thumb size={undefined} src={undefined} state="loading" />
         )}
-        {!disabled && (
-          <div className="page-actions">
-            {index > 0 && <TileAction icon="arrowLeft" label="Mover antes" onClick={() => onMove(-1)} />}
-            <TileAction icon="trash" label="Quitar" onClick={onRemove} />
-          </div>
-        )}
-        {(preview.status === "encrypted" || preview.status === "error") && (
+        {actions}
+        {issue && (
           <span className="file-issue" title={meta}>
             <Icon name={preview.status === "encrypted" ? "lock" : "alert"} size={14} />
           </span>
         )}
       </div>
-      <span className="file-name" title={item.file.name}>
-        {item.file.name}
+      <span className="file-name" title={name}>
+        {name}
       </span>
       <span className="file-meta">{meta}</span>
-      {total > 1 && <span className="visually-hidden">Posición {index + 1} de {total}</span>}
-    </li>
+    </>
   );
 }
 
@@ -189,6 +251,7 @@ function TileAction({ icon, label, onClick }: { icon: "arrowLeft" | "trash"; lab
         event.stopPropagation();
         onClick();
       }}
+      onMouseDown={(event) => event.stopPropagation()}
     >
       <Icon name={icon} size={16} />
     </button>

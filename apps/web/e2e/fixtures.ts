@@ -1,4 +1,4 @@
-import { test as base, expect, type Download, type Page } from "@playwright/test";
+import { test as base, expect, type Download, type Locator, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { crc32, deflateSync } from "node:zlib";
 import * as mupdf from "mupdf";
@@ -182,6 +182,28 @@ export async function dropFiles(page: Page, selector: string, files: FilePayload
   await target.dispatchEvent("dragenter", { dataTransfer });
   await target.dispatchEvent("dragover", { dataTransfer });
   await target.dispatchEvent("drop", { dataTransfer });
+}
+
+/**
+ * Arrastra una ficha con el ratón real hasta el cuarto izquierdo de otra: queda ANTES de ella.
+ * dnd-kit exige superar la distancia de activación y recibir movimientos intermedios; `dragTo` de
+ * Playwright hace un solo salto y el sensor nunca arranca.
+ */
+export async function dragSort(page: Page, source: Locator, target: Locator): Promise<void> {
+  const from = await source.boundingBox();
+  const to = await target.boundingBox();
+  if (!from || !to) throw new Error("La ficha no es visible");
+  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  const end = { x: to.x + to.width * 0.25, y: to.y + to.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 12, start.y + 4, { steps: 4 });
+  await page.mouse.move(end.x, end.y, { steps: 16 });
+  await page.mouse.move(end.x + 1, end.y + 1, { steps: 2 });
+  await page.mouse.up();
+  // dnd-kit deja 50 ms un listener de captura que anula el `click` que sigue a un arrastre; un clic de
+  // prueba en ese lapso nunca llega a React. La capa de arrastre se desmonta después de ese margen.
+  await page.locator(".drag-overlay").waitFor({ state: "detached" });
 }
 
 /**

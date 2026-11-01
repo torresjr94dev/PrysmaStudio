@@ -1,11 +1,14 @@
 import { EngineFailure, type EngineMetrics, type InputFile } from "@prysmastudio/engine";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { FileCard, SlotPicker } from "../components/FileCard.tsx";
 import { FileGrid, type FileIssue, type FileItem } from "../components/FileGrid.tsx";
 import { DropOverlay, Dropzone, deliverFiles, useFilePicker, useWindowFileDrop } from "../components/FilePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { OptionsForm } from "../components/OptionsForm.tsx";
 import { PageGrid, resetPages } from "../components/PageGrid.tsx";
+import { Progress } from "../components/Progress.tsx";
 import { ResultView, type Result } from "../components/ResultView.tsx";
 import { engine } from "../lib/engine.ts";
 import { clientByteBudget, formatBytes, newKey, pluralize, toInput } from "../lib/files.ts";
@@ -45,6 +48,20 @@ function zipNameFor(tool: Tool, firstName: string | undefined): string {
   return `${base}-${tool.slug}.zip`;
 }
 
+function Breadcrumb({ title }: { title: string }) {
+  return (
+    <nav className="breadcrumb" aria-label="Ruta">
+      <a href="/" onClick={linkHandler("/")}>
+        Herramientas
+      </a>
+      <span className="breadcrumb-sep" aria-hidden="true">
+        /
+      </span>
+      <span>{title}</span>
+    </nav>
+  );
+}
+
 interface Props {
   tool: Tool;
   capabilities: Capabilities | null | undefined;
@@ -63,11 +80,13 @@ export function ToolPage({ tool, capabilities }: Props) {
   const [issues, setIssues] = useState<Record<string, FileIssue>>({});
   const [values, setValues] = useState<Values>(tool.defaults);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const [notice, setNotice] = useState<string | null>(null);
   const [accessKey, setAccessKey] = useState(readStoredKey);
   /** Resultados actuales ya descargados (al menos uno): cerrar la pestaña ya no pierde nada. */
   const [downloaded, setDownloaded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  /** Espejo de `items` para decidir avisos fuera del updater de estado (StrictMode lo ejecuta dos veces). */
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   const usesSingle = workspace.kind === "single" || workspace.kind === "pages";
   const preview = useDocumentPreview(usesSingle ? single : null, workspace.kind === "pages" ? "all" : "first");
@@ -85,10 +104,9 @@ export function ToolPage({ tool, capabilities }: Props) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const reportRejected = useCallback(
-    (count: number) => setNotice(count > 0 ? `Se ignoraron ${pluralize(count, "archivo", "archivos")} de un tipo que esta herramienta no acepta.` : null),
-    [],
-  );
+  const reportRejected = useCallback((count: number) => {
+    if (count > 0) toast.warning(`${count === 1 ? "Se ignoró" : "Se ignoraron"} ${pluralize(count, "archivo", "archivos")} de un tipo que esta herramienta no acepta.`);
+  }, []);
 
   const addFiles = useCallback(
     (incoming: File[]) => {
@@ -96,10 +114,10 @@ export function ToolPage({ tool, capabilities }: Props) {
       setPhase({ kind: "idle" });
       switch (workspace.kind) {
         case "files":
+          if (incoming.length > workspace.max - itemsRef.current.length) toast.warning(`Esta herramienta acepta hasta ${workspace.max} archivos.`);
           setItems((current) => {
-            const room = workspace.max - current.length;
-            if (incoming.length > room) setNotice(`Esta herramienta acepta hasta ${workspace.max} archivos.`);
-            return [...current, ...incoming.slice(0, Math.max(0, room)).map((file) => ({ key: newKey(), file }))];
+            const room = Math.max(0, workspace.max - current.length);
+            return [...current, ...incoming.slice(0, room).map((file) => ({ key: newKey(), file }))];
           });
           break;
         case "slots":
@@ -176,7 +194,6 @@ export function ToolPage({ tool, capabilities }: Props) {
     setIssues({});
     setPages([]);
     setCuts([]);
-    setNotice(null);
     setPhase({ kind: "idle" });
   };
 
@@ -194,7 +211,6 @@ export function ToolPage({ tool, capabilities }: Props) {
     abortRef.current = controller;
     const onProgress = (progress: number, stage: string) => setPhase({ kind: "running", progress, stage });
     setPhase({ kind: "running", progress: 0, stage: "Preparando" });
-    setNotice(null);
 
     try {
       if (tool.runtime === "client") {
@@ -230,6 +246,7 @@ export function ToolPage({ tool, capabilities }: Props) {
     } catch (error) {
       if (controller.signal.aborted || (error instanceof EngineFailure && error.code === "cancelled")) {
         setPhase({ kind: "idle" });
+        toast.info("Proceso cancelado.");
       } else if (error instanceof EngineFailure || error instanceof ServerFailure) {
         setPhase({ kind: "error", message: error.message });
       } else {
@@ -301,13 +318,7 @@ export function ToolPage({ tool, capabilities }: Props) {
   if (!hasContent && workspace.kind !== "slots") {
     return (
       <div className="tool-empty">
-        <nav className="breadcrumb" aria-label="Ruta">
-          <a href="/" onClick={linkHandler("/")}>
-            Herramientas
-          </a>
-          <span aria-hidden="true">/</span>
-          <span>{tool.title}</span>
-        </nav>
+        <Breadcrumb title={tool.title} />
         <span className="tool-icon is-large" data-category={tool.category}>
           <Icon name={tool.icon} size={30} />
         </span>
@@ -320,7 +331,6 @@ export function ToolPage({ tool, capabilities }: Props) {
           hint={workspace.kind === "files" ? `Puedes agregar hasta ${workspace.max}.` : "Un archivo a la vez."}
           buttonLabel={workspace.kind === "files" ? `Elegir ${workspace.noun.many}` : "Elegir archivo"}
         />
-        {notice && <p className="notice is-warning">{notice}</p>}
         {privacy}
       </div>
     );
@@ -329,13 +339,7 @@ export function ToolPage({ tool, capabilities }: Props) {
   return (
     <div className="tool-page">
       <DropOverlay active={dropActive && workspace.kind !== "slots"} label={workspace.kind === "files" ? "Suelta para agregar" : "Suelta para reemplazar el archivo"} />
-      <nav className="breadcrumb" aria-label="Ruta">
-        <a href="/" onClick={linkHandler("/")}>
-          Herramientas
-        </a>
-        <span aria-hidden="true">/</span>
-        <span>{tool.title}</span>
-      </nav>
+      <Breadcrumb title={tool.title} />
       <div className="tool-layout">
         <section className="workspace" aria-label="Archivos">
           {workspace.kind === "files" && (
@@ -452,12 +456,6 @@ export function ToolPage({ tool, capabilities }: Props) {
               <span>{preview.error ?? "Uno de los archivos está dañado o no es un PDF válido."}</span>
             </p>
           )}
-          {notice && (
-            <p className="notice is-warning" role="status">
-              <Icon name="info" size={18} />
-              <span>{notice}</span>
-            </p>
-          )}
           {phase.kind === "error" && (
             <p className="notice is-error" role="alert">
               <Icon name="alert" size={18} />
@@ -467,16 +465,10 @@ export function ToolPage({ tool, capabilities }: Props) {
 
           <div className="sidebar-footer">
             {phase.kind === "running" ? (
-              <div className="progress" aria-live="polite">
-                <div className="progress-head">
-                  <span>{phase.stage}…</span>
-                  <span>{Math.round(phase.progress * 100)} %</span>
-                </div>
-                <progress max={1} value={phase.progress} aria-label={phase.stage} />
-                <button type="button" className="button is-ghost is-block" onClick={() => abortRef.current?.abort()}>
-                  Cancelar
-                </button>
-              </div>
+              // Mismo layoutId que la pantalla de éxito: al terminar, esta tarjeta se expande y se convierte en ella.
+              <motion.div className="job-card" layoutId="job-card" layout transition={{ layout: { type: "spring", stiffness: 260, damping: 26, mass: 1.2 } }}>
+                <Progress value={phase.progress} stage={phase.stage} onCancel={() => abortRef.current?.abort()} />
+              </motion.div>
             ) : (
               <>
                 <button

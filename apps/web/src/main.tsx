@@ -1,6 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+// Fuente mono y estilos de Sonner entran al bundle (mismo origen): la CSP no permite <style> inline ni CDN.
+import "@fontsource-variable/geist";
+import "@fontsource-variable/jetbrains-mono";
+import "sonner/dist/styles.css";
 import "./styles.css";
 
 const container = document.getElementById("root");

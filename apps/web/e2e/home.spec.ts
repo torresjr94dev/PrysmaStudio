@@ -1,6 +1,6 @@
 import { dropFiles, expect, makePdf, test } from "./fixtures.ts";
 
-test("la portada agrupa herramientas y el buscador filtra con «/»", async ({ page }) => {
+test("la portada agrupa herramientas y «/» abre la paleta, que filtra y navega", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("sin subirlos");
   await expect(page.getByRole("heading", { name: "Trámites en México", exact: true })).toBeVisible();
@@ -8,8 +8,12 @@ test("la portada agrupa herramientas y el buscador filtra con «/»", async ({ p
   await page.keyboard.press("/");
   await expect(page.getByRole("searchbox", { name: "Buscar herramienta" })).toBeFocused();
   await page.keyboard.type("rotar");
-  await expect(page.locator(".tool-card")).toHaveCount(1);
-  await expect(page.locator(".tool-card")).toContainText("Rotar PDF");
+  const options = page.getByRole("dialog").getByRole("option");
+  await expect(options).toHaveCount(1);
+  await expect(options).toContainText("Rotar PDF");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/rotar-pdf$/);
+  await expect(page.getByRole("heading", { name: "Rotar PDF" })).toBeVisible();
 });
 
 test("soltar PDFs en la portada sugiere herramientas y los lleva a la elegida", async ({ page }) => {

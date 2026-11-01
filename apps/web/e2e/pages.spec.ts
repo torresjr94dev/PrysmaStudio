@@ -1,4 +1,4 @@
-import { expect, makeEncryptedPdf, makePdf, readPdf, saveDownload, test, zipEntries } from "./fixtures.ts";
+import { dragSort, expect, makeEncryptedPdf, makePdf, readPdf, saveDownload, test, zipEntries } from "./fixtures.ts";
 
 async function openWith(page: import("@playwright/test").Page, slug: string, pdf: ReturnType<typeof makePdf>, pages: number) {
   await page.goto(`/${slug}`);
@@ -34,7 +34,7 @@ test("organizar: arrastrar y soltar reordena páginas", async ({ page }) => {
   await openWith(page, "organizar-pdf", makePdf(3, "D"), 3);
   const third = page.getByRole("option", { name: "Página 3" });
   const first = page.getByRole("option", { name: "Página 1" });
-  await third.dragTo(first, { targetPosition: { x: 8, y: 60 } });
+  await dragSort(page, third, first);
   await expect(page.locator(".page-tile").first()).toHaveAttribute("aria-label", "Página 3");
 
   const download = page.waitForEvent("download");
