@@ -1,6 +1,6 @@
 // Punto de entrada del Web Worker. El motor (≈10 MB de WASM) se importa de forma diferida para que
 // el manejador de mensajes exista desde el primer instante y ningún mensaje se pierda durante la carga.
-import type { EngineEvent, EngineOp, EngineRequest, InputFile } from "./protocol.ts";
+import type { EngineEvent, EngineOp, EngineRequest, InputFile, PreviewOptions } from "./protocol.ts";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -52,27 +52,45 @@ async function prepare(op: EngineOp): Promise<EngineOp> {
   return op;
 }
 
+async function reportFailure(id: string, error: unknown): Promise<void> {
+  const { isEngineError } = await errors;
+  if (isEngineError(error)) {
+    post({ type: "error", id, code: error.code, detail: error.detail });
+  } else {
+    console.error("[vitropdf-engine]", error);
+    post({ type: "error", id, code: "internal", detail: "Ocurrió un error inesperado al procesar el archivo." });
+  }
+}
+
+async function handleRun(id: string, op: EngineOp): Promise<void> {
+  const [{ runOp }, prepared] = await Promise.all([engine, prepare(op)]);
+  let lastProgressAt = 0;
+  const result = runOp(prepared, (progress, stage) => {
+    const now = performance.now();
+    if (now - lastProgressAt < 100 && progress < 1) return;
+    lastProgressAt = now;
+    post({ type: "progress", id, progress: Math.max(0, Math.min(1, progress)), stage });
+  });
+  post({ type: "done", id, result }, result.outputs.map((file) => file.bytes));
+}
+
+async function handlePreview(id: string, input: InputFile, options: PreviewOptions): Promise<void> {
+  const { runPreview } = await engine;
+  runPreview(input, options, {
+    info: (info) => post({ type: "preview.info", id, info }),
+    page: (thumbnail) => post({ type: "preview.page", id, thumbnail }, [thumbnail.jpeg]),
+  });
+  post({ type: "preview.done", id });
+}
+
 self.addEventListener("message", (event: MessageEvent<EngineRequest>) => {
-  const { id, op } = event.data;
+  const request = event.data;
   void (async () => {
     try {
-      const [{ runOp }, prepared] = await Promise.all([engine, prepare(op)]);
-      let lastProgressAt = 0;
-      const result = runOp(prepared, (progress, stage) => {
-        const now = performance.now();
-        if (now - lastProgressAt < 100 && progress < 1) return;
-        lastProgressAt = now;
-        post({ type: "progress", id, progress: Math.max(0, Math.min(1, progress)), stage });
-      });
-      post({ type: "done", id, result }, result.outputs.map((file) => file.bytes));
+      if (request.kind === "preview") await handlePreview(request.id, request.input, request.options);
+      else await handleRun(request.id, request.op);
     } catch (error) {
-      const { isEngineError } = await errors;
-      if (isEngineError(error)) {
-        post({ type: "error", id, code: error.code, detail: error.detail });
-      } else {
-        console.error("[vitropdf-engine]", error);
-        post({ type: "error", id, code: "internal", detail: "Ocurrió un error inesperado al procesar el archivo." });
-      }
+      await reportFailure(request.id, error);
     }
   })();
 });

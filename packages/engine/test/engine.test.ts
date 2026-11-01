@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { runOp } from "../src/engine.ts";
+import { runOp, runPreview } from "../src/engine.ts";
 import { EngineError } from "../src/errors.ts";
-import type { EngineErrorCode, EngineOp } from "../src/protocol.ts";
+import type { EngineErrorCode, EngineOp, InputFile, PageThumbnail, PreviewInfo } from "../src/protocol.ts";
 import { parsePageRanges } from "../src/ranges.ts";
 import {
   countImages,
@@ -111,6 +111,104 @@ describe("organize", () => {
 
   it("rechaza índices inexistentes", () => {
     expectCode(() => run({ op: "organize", input: textPdf(2, "O"), pages: "1,6" }), "input.invalid");
+  });
+});
+
+describe("arrange", () => {
+  it("reordena, elimina y gira cada página por separado", () => {
+    const doc = openOutput(
+      onlyOutput({
+        op: "arrange",
+        input: textPdf(3, "A"),
+        purpose: "organize",
+        pages: [
+          { source: 2, rotate: 90 },
+          { source: 0, rotate: 0 },
+        ],
+      }),
+    );
+    expect(doc.countPages()).toBe(2);
+    expect([0, 1].map((i) => pageText(doc, i))).toEqual(["A3", "A1"]);
+    expect(doc.loadPage(0).getBounds()).toEqual([0, 0, 792, 612]);
+    expect(doc.loadPage(1).getBounds()).toEqual([0, 0, 612, 792]);
+  });
+
+  it("los duplicados son páginas independientes (regresión: rearrangePages compartía el objeto)", () => {
+    const { outputs, warnings } = run({
+      op: "arrange",
+      input: textPdf(2, "D"),
+      purpose: "organize",
+      pages: [
+        { source: 0, rotate: 0 },
+        { source: 0, rotate: 180 },
+        { source: 1, rotate: 0 },
+      ],
+    });
+    const [output] = outputs;
+    if (!output) throw new Error("sin salida");
+    const doc = openOutput(output.bytes);
+    expect([0, 1, 2].map((i) => pageText(doc, i))).toEqual(["D1", "D1", "D2"]);
+    expect(doc.findPage(0).asIndirect()).not.toBe(doc.findPage(1).asIndirect());
+    expect(doc.findPage(0).getInheritable("Rotate").isNumber() ? doc.findPage(0).getInheritable("Rotate").asNumber() : 0).toBe(0);
+    expect(doc.findPage(1).getInheritable("Rotate").asNumber()).toBe(180);
+    expect(warnings.some((warning) => warning.includes("marcadores"))).toBe(true);
+  });
+
+  it("acumula el giro existente y nombra según el propósito", () => {
+    const once = onlyOutput({ op: "rotate", input: textPdf(1, "R"), angle: 90 });
+    const { outputs } = run({ op: "arrange", input: { name: "carta.pdf", bytes: once }, purpose: "rotate", pages: [{ source: 0, rotate: 270 }] });
+    const [output] = outputs;
+    if (!output) throw new Error("sin salida");
+    expect(output.name).toBe("carta-rotado.pdf");
+    expect(openOutput(output.bytes).findPage(0).get("Rotate").asNumber()).toBe(0);
+  });
+
+  it("rechaza páginas inexistentes, giros inválidos y resultados vacíos", () => {
+    expectCode(() => run({ op: "arrange", input: textPdf(2, "X"), purpose: "organize", pages: [{ source: 5, rotate: 0 }] }), "input.invalid");
+    expectCode(
+      () => run({ op: "arrange", input: textPdf(2, "X"), purpose: "organize", pages: [{ source: 0, rotate: 45 as 90 }] }),
+      "input.invalid",
+    );
+    expectCode(() => run({ op: "arrange", input: textPdf(2, "X"), purpose: "organize", pages: [] }), "input.invalid");
+  });
+});
+
+function collectPreview(input: InputFile, scope: "first" | "all") {
+  let info: PreviewInfo | null = null;
+  const thumbnails: PageThumbnail[] = [];
+  runPreview(input, { scope, maxEdge: 200 }, { info: (value) => (info = value), page: (thumb) => thumbnails.push(thumb) });
+  return { info: info as PreviewInfo | null, thumbnails };
+}
+
+describe("preview", () => {
+  it("envía tamaños de todas las páginas y una miniatura JPEG por página", () => {
+    const rotated = onlyOutput({ op: "rotate", input: textPdf(3, "V"), angle: 90, pages: "2" });
+    const { info, thumbnails } = collectPreview({ name: "v.pdf", bytes: rotated }, "all");
+    expect(info?.pageCount).toBe(3);
+    expect(info?.pages[1]).toEqual({ width: 792, height: 612 });
+    expect(thumbnails.map((thumb) => thumb.index)).toEqual([0, 1, 2]);
+    const first = new Uint8Array(thumbnails[0]?.jpeg ?? new ArrayBuffer(0));
+    expect([first[0], first[1]]).toEqual([0xff, 0xd8]);
+    expect(Math.max(thumbnails[1]?.width ?? 0, thumbnails[1]?.height ?? 0)).toBe(200);
+    expect(thumbnails[1]?.width).toBeGreaterThan(thumbnails[1]?.height ?? 0);
+  });
+
+  it("con alcance «first» solo renderiza la portada pero reporta el total", () => {
+    const { info, thumbnails } = collectPreview(textPdf(4, "F"), "first");
+    expect(info?.pageCount).toBe(4);
+    expect(info?.pages).toHaveLength(1);
+    expect(thumbnails).toHaveLength(1);
+  });
+
+  it("un PDF cifrado se reporta como protegido, sin error", () => {
+    const locked = onlyOutput({ op: "protect", input: textPdf(1, "L"), userPassword: "secreto-1", permissions: [] });
+    const { info, thumbnails } = collectPreview({ name: "l.pdf", bytes: locked }, "all");
+    expect(info).toEqual({ pageCount: 0, encrypted: true, pages: [], thumbnails: 0 });
+    expect(thumbnails).toHaveLength(0);
+  });
+
+  it("un archivo que no es PDF falla con error tipado", () => {
+    expectCode(() => collectPreview({ name: "x.pdf", bytes: new TextEncoder().encode("hola").buffer }, "all"), "pdf.corrupt");
   });
 });
 

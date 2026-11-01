@@ -1,7 +1,7 @@
 import * as mupdf from "mupdf";
 import { EngineError } from "../errors.ts";
 import { LIMITS, assertInputs, baseName, openPdf, savePdf, using } from "../pdf.ts";
-import type { InputFile, OutputFile } from "../protocol.ts";
+import type { ArrangePurpose, ArrangedPage, InputFile, OutputFile } from "../protocol.ts";
 import { parsePageRanges, parsePageSet } from "../ranges.ts";
 import type { Report } from "./types.ts";
 
@@ -102,19 +102,83 @@ export function rotate(input: InputFile, angle: 90 | 180 | 270, pages: string | 
   });
 }
 
+const QUARTER_TURNS = new Set([0, 90, 180, 270]);
+const ARRANGE_SUFFIX: Record<ArrangePurpose, string> = { organize: "organizado", rotate: "rotado" };
+
+function normalizeAngle(angle: number): number {
+  return ((Math.round(angle / 90) * 90) % 360 + 360) % 360;
+}
+
+function isIdentity(order: number[], pageCount: number): boolean {
+  return order.length === pageCount && order.every((page, index) => page === index);
+}
+
+/**
+ * Construye el documento resultante página por página: orden, eliminación, duplicado y giro individual.
+ *
+ * Sin duplicados se reordena en sitio (conserva marcadores, formularios y metadatos). Con duplicados se
+ * copian las páginas a un documento nuevo: `rearrangePages` reutiliza el MISMO objeto de página para cada
+ * copia (árbol de páginas inválido, y girar una copia giraría todas), mientras que `graftPage` crea objetos
+ * independientes que comparten contenido y recursos.
+ */
+export function arrange(
+  input: InputFile,
+  pages: ArrangedPage[],
+  purpose: ArrangePurpose,
+  report: Report,
+  warnings: string[],
+): OutputFile[] {
+  assertInputs([input]);
+  if (!Array.isArray(pages) || pages.length === 0) {
+    throw new EngineError("input.invalid", "El documento resultante debe tener al menos una página.");
+  }
+  if (pages.length > LIMITS.maxPages) throw new EngineError("limits.exceeded", `Máximo ${LIMITS.maxPages} páginas.`);
+  if (!(purpose in ARRANGE_SUFFIX)) throw new EngineError("input.invalid", `Propósito desconocido: ${String(purpose)}.`);
+
+  return using(openPdf(input), (source) => {
+    const pageCount = source.countPages();
+    for (const page of pages) {
+      if (!Number.isInteger(page.source) || page.source < 0 || page.source >= pageCount) {
+        throw new EngineError("input.invalid", `La página ${Number(page.source) + 1} no existe (el documento tiene ${pageCount}).`);
+      }
+      if (!QUARTER_TURNS.has(page.rotate)) throw new EngineError("input.invalid", "El giro debe ser 0, 90, 180 o 270 grados.");
+    }
+
+    const order = pages.map((page) => page.source);
+    const duplicated = new Set(order).size !== order.length;
+    let target = source;
+
+    report(0.2, "Reordenando páginas");
+    if (duplicated) {
+      target = new mupdf.PDFDocument();
+      graftPages(target, source, order);
+      warnings.push("Como duplicaste páginas, el resultado no conserva los marcadores ni los formularios del original.");
+    } else if (!isIdentity(order, pageCount)) {
+      source.rearrangePages(order);
+    }
+
+    try {
+      report(0.6, "Aplicando giros");
+      pages.forEach((page, index) => {
+        if (page.rotate === 0) return;
+        const pageObject = target.findPage(index);
+        const current = pageObject.getInheritable("Rotate");
+        pageObject.put("Rotate", normalizeAngle((current.isNumber() ? current.asNumber() : 0) + page.rotate));
+      });
+      report(0.8, "Guardando");
+      return [pdfOutput(`${baseName(input.name)}-${ARRANGE_SUFFIX[purpose]}.pdf`, savePdf(target))];
+    } finally {
+      if (target !== source) target.destroy();
+    }
+  });
+}
+
 /**
  * Reordenar, eliminar, extraer y duplicar páginas con una sola lista de rangos en el orden deseado:
  * "3,1-2" pone la 3 primero; omitir una página la elimina; repetirla la duplica.
  */
-export function organize(input: InputFile, pages: string, report: Report): OutputFile[] {
+export function organize(input: InputFile, pages: string, report: Report, warnings: string[]): OutputFile[] {
   assertInputs([input]);
-
-  return using(openPdf(input), (doc) => {
-    const order = parsePageRanges(pages, doc.countPages()).flat();
-    if (order.length > LIMITS.maxPages) throw new EngineError("limits.exceeded", `Máximo ${LIMITS.maxPages} páginas.`);
-    report(0.3, "Reordenando páginas");
-    doc.rearrangePages(order);
-    report(0.8, "Guardando");
-    return [pdfOutput(`${baseName(input.name)}-organizado.pdf`, savePdf(doc))];
-  });
+  const order = using(openPdf(input), (doc) => parsePageRanges(pages, doc.countPages()).flat());
+  return arrange(input, order.map((source) => ({ source, rotate: 0 })), "organize", report, warnings);
 }

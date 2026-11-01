@@ -2,10 +2,11 @@ import { EngineError } from "./errors.ts";
 import { compress } from "./ops/compress.ts";
 import { imagesToPdf, ineSheet } from "./ops/images.ts";
 import { protect, unlock } from "./ops/security.ts";
-import { merge, organize, rotate, split } from "./ops/structure.ts";
+import { arrange, merge, organize, rotate, split } from "./ops/structure.ts";
+import { preview, type PreviewSink } from "./ops/preview.ts";
 import type { Report } from "./ops/types.ts";
 import { resetMupdfWarnings, takeMupdfWarnings } from "./pdf.ts";
-import type { EngineOp, EngineResult, InputFile, OutputFile } from "./protocol.ts";
+import type { EngineOp, EngineResult, InputFile, OutputFile, PreviewOptions } from "./protocol.ts";
 
 function inputsOf(op: EngineOp): InputFile[] {
   switch (op.op) {
@@ -28,7 +29,9 @@ function execute(op: EngineOp, report: Report, warnings: string[]): OutputFile[]
     case "rotate":
       return rotate(op.input, op.angle, op.pages, report);
     case "organize":
-      return organize(op.input, op.pages, report);
+      return organize(op.input, op.pages, report, warnings);
+    case "arrange":
+      return arrange(op.input, op.pages, op.purpose, report, warnings);
     case "protect":
       return protect(op.input, op.userPassword, op.ownerPassword, op.permissions, report);
     case "unlock":
@@ -73,4 +76,14 @@ export function runOp(op: EngineOp, report: Report): EngineResult {
       durationMs: Math.round(performance.now() - started),
     },
   };
+}
+
+export function runPreview(input: InputFile, options: PreviewOptions, sink: PreviewSink): void {
+  resetMupdfWarnings();
+  try {
+    preview(input, options, sink);
+  } finally {
+    // Las advertencias de una vista previa no deben filtrarse a la siguiente operación.
+    takeMupdfWarnings();
+  }
 }
