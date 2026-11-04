@@ -481,9 +481,14 @@ export function acceptOf(tool: Tool): string {
   return tool.workspace.kind === "pages" ? PDF_ACCEPT : tool.workspace.accept;
 }
 
-/** Herramientas visibles: las de cliente siempre; las de servidor solo si el servidor las ofrece. */
-export function availableTools(capabilities: { tools: Array<{ id: string; available: boolean }> } | null | undefined): Tool[] {
-  return TOOLS.filter(
-    (tool) => tool.runtime === "client" || capabilities?.tools.some((item) => item.id === tool.serverTool && item.available),
-  );
+export type ToolStatus = "ready" | "checking" | "offline";
+
+/**
+ * Las herramientas se muestran siempre; las de servidor llevan su estado. Ocultarlas hacía creer que
+ * no existían cuando el servidor estaba apagado.
+ */
+export function toolStatus(tool: Tool, capabilities: { tools: Array<{ id: string; available: boolean }> } | null | undefined): ToolStatus {
+  if (tool.runtime === "client") return "ready";
+  if (capabilities === undefined) return "checking";
+  return capabilities?.tools.some((item) => item.id === tool.serverTool && item.available) ? "ready" : "offline";
 }

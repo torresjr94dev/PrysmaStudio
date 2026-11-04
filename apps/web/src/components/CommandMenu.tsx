@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { navigate } from "../lib/router.ts";
-import { CATEGORIES, type Tool } from "../tools/registry.ts";
+import type { Capabilities } from "../lib/server.ts";
+import { CATEGORIES, toolStatus, type Tool } from "../tools/registry.ts";
 import { Icon } from "./Icon.tsx";
+import { ToolStatusChip } from "./ToolStatus.tsx";
 
 /** Búsqueda sin acentos ni mayúsculas: «comprimir» encuentra «Comprimir PDF»; «ine», «INE». */
 export function normalize(text: string): string {
@@ -10,6 +12,7 @@ export function normalize(text: string): string {
 
 interface Props {
   tools: Tool[];
+  capabilities: Capabilities | null | undefined;
   open: boolean;
   onClose: () => void;
 }
@@ -18,7 +21,7 @@ interface Props {
  * Paleta de comandos (estilo ⌘K): se abre con «/» o Ctrl/⌘+K, filtra mientras se escribe y se navega
  * con las flechas. Es un <dialog> nativo: trampa de foco, Escape y devolver el foco vienen gratis.
  */
-export function CommandMenu({ tools, open, onClose }: Props) {
+export function CommandMenu({ tools, capabilities, open, onClose }: Props) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,13 +125,14 @@ export function CommandMenu({ tools, open, onClose }: Props) {
                   onPointerMove={() => setActive(matches.indexOf(tool))}
                   onClick={() => choose(tool)}
                 >
-                  <span className="tool-icon" data-category={tool.category}>
+                  <span className="tool-icon is-small" data-category={tool.category}>
                     <Icon name={tool.icon} size={18} />
                   </span>
                   <span className="command-item-text">
                     <span className="tool-title">{tool.title}</span>
                     <span className="tool-summary">{tool.summary}</span>
                   </span>
+                  {tool.runtime === "server" && <ToolStatusChip status={toolStatus(tool, capabilities)} variant="compact" />}
                   <kbd className="command-item-hint" aria-hidden="true">
                     ↵
                   </kbd>

@@ -47,15 +47,38 @@ interface DropzoneProps extends PickerOptions {
   children?: ReactNode;
 }
 
+const FORMAT_LABELS: Array<[RegExp, string]> = [
+  [/^(application\/pdf|\.pdf)$/, "PDF"],
+  [/^(image\/jpeg|\.jpe?g)$/, "JPG"],
+  [/^(image\/png|\.png)$/, "PNG"],
+  [/^\.docx?$/, "Word"],
+  [/^\.xlsx?$/, "Excel"],
+  [/^\.pptx?$/, "PowerPoint"],
+  [/^\.od[tsp]$/, "OpenDocument"],
+  [/^\.rtf$/, "RTF"],
+];
+
+/** Etiquetas legibles y sin repetir a partir de un `accept` estilo <input type=file>. */
+export function acceptLabels(accept: string): string[] {
+  const labels: string[] = [];
+  for (const rule of accept.split(",").map((item) => item.trim().toLowerCase())) {
+    const label = FORMAT_LABELS.find(([pattern]) => pattern.test(rule))?.[1];
+    if (label && !labels.includes(label)) labels.push(label);
+  }
+  return labels;
+}
+
 /**
- * Estado vacío de una herramienta: zona grande de clic o arrastre. Mientras hay un arrastre encima, un
- * haz de luz recorre el borde; si se suelta un tipo que no acepta, tiembla y destella en rojo apagado.
+ * Estado vacío de una herramienta: placa de vidrio con un pozo punteado, tres hojas que se abren en
+ * abanico al acercarse y los formatos aceptados. Mientras hay un arrastre encima, un haz de luz recorre
+ * el borde; si se suelta un tipo que no acepta, tiembla y destella en rojo apagado.
  */
 export function Dropzone({ title, hint, buttonLabel, children, ...options }: DropzoneProps) {
   const [over, setOver] = useState(false);
   const [rejected, setRejected] = useState(false);
   const [scope, animate] = useAnimate<HTMLDivElement>();
   const timer = useRef(0);
+  const formats = acceptLabels(options.accept);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -99,15 +122,36 @@ export function Dropzone({ title, hint, buttonLabel, children, ...options }: Dro
       onDrop={onDrop}
     >
       <span className="beam" aria-hidden="true" />
-      <span className="dropzone-icon">
-        <Icon name="upload" size={28} />
-      </span>
-      <p className="dropzone-title">{title}</p>
-      <button type="button" className="button is-primary is-large" onClick={picker.open}>
-        {buttonLabel}
-      </button>
-      <p className="dropzone-hint">{hint}</p>
-      {children}
+      <div className="dropzone-well">
+        <div className="dropzone-art" aria-hidden="true">
+          <span className="sheet sheet-back" />
+          <span className="sheet sheet-mid" />
+          <span className="sheet sheet-front">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="dropzone-arrow">
+            <Icon name="upload" size={18} />
+          </span>
+        </div>
+        <p className="dropzone-title">{title}</p>
+        <p className="dropzone-hint">{hint}</p>
+        <button type="button" className="button is-primary is-large" onClick={picker.open}>
+          {buttonLabel}
+        </button>
+        {formats.length > 0 && (
+          <ul className="dropzone-formats" aria-label="Formatos aceptados">
+            {formats.map((format) => (
+              <li key={format} className="chip">
+                {format}
+              </li>
+            ))}
+          </ul>
+        )}
+        {children}
+      </div>
       {picker.input}
     </div>
   );
@@ -115,8 +159,12 @@ export function Dropzone({ title, hint, buttonLabel, children, ...options }: Dro
 
 /**
  * Soltar archivos en cualquier parte de la ventana. Devuelve si hay un arrastre de archivos en curso
- * para mostrar la capa «Suelta aquí». El contador de profundidad compensa los dragenter/dragleave de
- * cada elemento hijo.
+ * para mostrar la capa «Suelta aquí».
+ *
+ * Se detecta por latido: `dragover` se dispara sin parar mientras el arrastre está sobre la ventana, así
+ * que si deja de llegar (se soltó, se canceló con Escape o se salió de la ventana) la capa se retira sola.
+ * Contar dragenter/dragleave dejaba la capa pegada cuando un elemento hijo se desmontaba a mitad del
+ * arrastre o el navegador se saltaba un dragleave.
  */
 export function useWindowFileDrop(onFiles: (files: File[]) => void, enabled: boolean): boolean {
   const [active, setActive] = useState(false);
@@ -131,32 +179,38 @@ export function useWindowFileDrop(onFiles: (files: File[]) => void, enabled: boo
       setActive(false);
       return;
     }
-    let depth = 0;
-    const enter = (event: globalThis.DragEvent) => {
+    let timer = 0;
+    const hide = () => {
+      window.clearTimeout(timer);
+      timer = 0;
+      setActive(false);
+    };
+    const over = (event: globalThis.DragEvent) => {
       if (!isFileDrag(event)) return;
-      depth += 1;
       setActive(true);
+      window.clearTimeout(timer);
+      // El navegador repite dragover cada 350 ± 200 ms aunque el cursor no se mueva: el margen debe superarlo.
+      timer = window.setTimeout(hide, 700);
     };
     const leave = (event: globalThis.DragEvent) => {
-      if (!isFileDrag(event)) return;
-      depth = Math.max(0, depth - 1);
-      if (depth === 0) setActive(false);
+      // relatedTarget nulo: el cursor salió de la ventana.
+      if (isFileDrag(event) && event.relatedTarget === null) hide();
     };
     // No se consulta defaultPrevented: el guard global de la app también lo marca y, según el orden de
     // montaje, puede correr antes. Las zonas locales (Dropzone, ranuras) detienen la propagación.
     const drop = (event: globalThis.DragEvent) => {
       if (!isFileDrag(event)) return;
       event.preventDefault();
-      depth = 0;
-      setActive(false);
+      hide();
       const files = Array.from(event.dataTransfer?.files ?? []);
       if (files.length > 0) callback.current(files);
     };
-    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragover", over);
     window.addEventListener("dragleave", leave);
     window.addEventListener("drop", drop);
     return () => {
-      window.removeEventListener("dragenter", enter);
+      window.clearTimeout(timer);
+      window.removeEventListener("dragover", over);
       window.removeEventListener("dragleave", leave);
       window.removeEventListener("drop", drop);
     };

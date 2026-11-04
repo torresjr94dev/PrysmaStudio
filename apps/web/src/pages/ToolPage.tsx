@@ -328,7 +328,7 @@ export function ToolPage({ tool, capabilities }: Props) {
         <Dropzone
           {...pickerOptions}
           title={workspace.kind === "files" ? `Arrastra aquí tus ${workspace.noun.many}` : "Arrastra aquí tu archivo"}
-          hint={workspace.kind === "files" ? `Puedes agregar hasta ${workspace.max}.` : "Un archivo a la vez."}
+          hint={workspace.kind === "files" ? `O elígelos desde tu equipo. Puedes agregar hasta ${workspace.max}.` : "O elígelo desde tu equipo. Un archivo a la vez."}
           buttonLabel={workspace.kind === "files" ? `Elegir ${workspace.noun.many}` : "Elegir archivo"}
         />
         {privacy}

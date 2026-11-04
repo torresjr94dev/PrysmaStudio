@@ -30,7 +30,8 @@ test("soltar PDFs en la portada sugiere herramientas y los lleva a la elegida", 
 test("el menú de herramientas navega sin recargar", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Herramientas", exact: true }).click();
-  await page.getByRole("link", { name: "Comprimir PDF", exact: true }).click();
+  // El pie de página también enlaza cada herramienta: la prueba apunta al menú de la cabecera.
+  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Comprimir PDF", exact: true }).click();
   await expect(page).toHaveURL(/\/comprimir-pdf$/);
   await expect(page.getByRole("heading", { name: "Comprimir PDF" })).toBeVisible();
 });

@@ -43,6 +43,9 @@ const PATHS = {
   eyeOff:
     "M3 3l18 18 M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3 3.9 M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6 M9.9 9.9a3 3 0 0 0 4.2 4.2",
   selectAll: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z M5.5 7l1.5 1.5L9 5.5 M15.5 7l1.5 1.5 2-3",
+  code: "M16 18l6-6-6-6 M8 6l-6 6 6 6",
+  bug: "M8 2l1.5 2 M16 2l-1.5 2 M9 7h6a3 3 0 0 1 3 3v6a6 6 0 0 1-12 0v-6a3 3 0 0 1 3-3z M3 13h3 M18 13h3 M4 20l3-2 M20 20l-3-2 M4 7l3 2 M20 7l-3 2",
+  scale: "M12 3v18 M5 21h14 M3 7l4 8h-8z M17 7l4 8h-8z M3 7h18",
 } as const;
 
 export type IconName = keyof typeof PATHS;
