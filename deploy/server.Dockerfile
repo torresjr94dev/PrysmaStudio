@@ -9,6 +9,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 COPY server/pyproject.toml server/uv.lock ./
 RUN uv sync --frozen --no-dev --extra ocr
 COPY server/prysmastudio ./prysmastudio
+# El servidor corre como 10001: no depender de la umask de quien construye.
+RUN chmod -R a+rX /app/prysmastudio
 RUN groupadd --system --gid 10001 prysma \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin prysma
 USER 10001
