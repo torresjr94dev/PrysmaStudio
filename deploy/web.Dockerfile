@@ -9,6 +9,8 @@ WORKDIR /src
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/engine/package.json packages/engine/
+# Los parches de pnpm (pnpm-workspace.yaml → patchedDependencies) son parte de la instalación.
+COPY patches patches
 RUN pnpm install --frozen-lockfile
 COPY packages/engine packages/engine
 COPY apps/web apps/web
