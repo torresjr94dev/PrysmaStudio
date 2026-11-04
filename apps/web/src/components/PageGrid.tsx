@@ -1,3 +1,4 @@
+import type { RedactCategory, RedactRect } from "@prysmastudio/engine";
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import { newKey, pluralize } from "../lib/files.ts";
 import type { DocumentPreview } from "../lib/preview.ts";
@@ -19,6 +20,18 @@ interface Props {
   onToggleCut: (position: number) => void;
   onClearCuts: () => void;
   disabled: boolean;
+  /** Marcas de redacción por página de origen (modo tapar). */
+  marks?: Record<number, PageMark[]> | undefined;
+  onToggleMark?: ((id: string) => void) | undefined;
+}
+
+/** Zona encontrada en una página: se dibuja sobre la miniatura y se puede excluir con un clic. */
+export interface PageMark {
+  id: string;
+  rect: RedactRect;
+  category: RedactCategory;
+  selected: boolean;
+  label: string;
 }
 
 const THUMB_STORAGE = "prysma:thumb-size";
@@ -80,7 +93,7 @@ function spreadsOf(pages: PageItem[]): PageItem[][] {
   return spreads;
 }
 
-export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditable, onToggleCut, onClearCuts, disabled }: Props) {
+export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditable, onToggleCut, onClearCuts, disabled, marks, onToggleMark }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [thumb, setThumb] = useState(readThumbSize);
@@ -92,6 +105,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
   const keys = pages.map((page) => page.key);
   const cutSet = new Set(cuts);
   const selectable = mode === "organize";
+  const editable = mode === "organize" || mode === "rotate";
   const activeKey = focusKey && keys.includes(focusKey) ? focusKey : keys[0];
   const selection = keys.filter((key) => selected.has(key));
   const sortable = mode === "organize" && !spread;
@@ -216,7 +230,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
           if (cutsEditable && index < pages.length - 1) onToggleCut(index);
         } else if (mode === "rotate") {
           rotate(new Set([page.key]), 1);
-        } else {
+        } else if (selectable) {
           anchorRef.current = page.key;
           setSelected((current) => {
             const next = new Set(current);
@@ -235,7 +249,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
         return;
       case "r":
       case "R":
-        if (mode !== "split" && !command) {
+        if (editable && !command) {
           event.preventDefault();
           rotate(targets(page.key), event.shiftKey ? -1 : 1);
         }
@@ -304,11 +318,16 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
       onDuplicate={() => duplicate(new Set([page.key]))}
       onRemove={() => remove(new Set([page.key]))}
       onToggleCut={() => onToggleCut(index)}
+      marks={marks?.[page.source]}
+      onToggleMark={onToggleMark}
     />
   );
 
+  const markCount = marks ? Object.values(marks).flat().filter((mark) => mark.selected).length : 0;
   const hint =
-    mode === "split"
+    mode === "redact"
+      ? "Las zonas marcadas se eliminarán del PDF. Haz clic en una marca para dejarla fuera; vuelve a hacer clic para incluirla."
+      : mode === "split"
       ? cutsEditable
         ? "Pasa el cursor entre dos páginas y haz clic en las tijeras para cortar ahí."
         : "Los cortes se calculan con la regla elegida en el panel."
@@ -322,7 +341,9 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
     <div className="page-editor">
       <div className="toolbar" role="toolbar" aria-label="Acciones de páginas">
         <p className="toolbar-status" aria-live="polite">
-          {mode === "split"
+          {mode === "redact"
+            ? `${pluralize(markCount, "zona marcada", "zonas marcadas")} en ${pluralize(pages.length, "página", "páginas")}`
+            : mode === "split"
             ? `${pluralize(pages.length, "página", "páginas")} → ${pluralize(groups, "archivo", "archivos")}`
             : selection.length > 0
               ? `${pluralize(selection.length, "seleccionada", "seleccionadas")} de ${pages.length}`
@@ -350,7 +371,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
           {mode === "split" && cutsEditable && (
             <ToolbarButton icon="x" label="Quitar cortes" disabled={disabled || cuts.length === 0} onClick={onClearCuts} />
           )}
-          {mode !== "split" && (
+          {editable && (
             <ToolbarButton
               icon="undo"
               label="Restablecer"
@@ -450,9 +471,44 @@ interface TileProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onToggleCut: () => void;
+  marks?: PageMark[] | undefined;
+  onToggleMark?: ((id: string) => void) | undefined;
 }
 
-function PageTile({ as, page, index, total, mode, preview, selectable, isSelected, isActive, group, startsGroup, cut, cutsEditable, disabled, sortable, register, onClick, onKeyDown, onFocus, onRotate, onDuplicate, onRemove, onToggleCut }: TileProps) {
+/** Marcas de redacción en porcentajes del tamaño de la página: siguen a la hoja con cualquier zoom. */
+function MarkLayer({ marks, size, disabled, onToggle }: { marks: PageMark[]; size: { width: number; height: number } | undefined; disabled: boolean; onToggle: ((id: string) => void) | undefined }) {
+  if (!size) return null;
+  return (
+    <>
+      {marks.map((mark) => (
+        <button
+          key={mark.id}
+          type="button"
+          className="redact-mark"
+          data-selected={mark.selected}
+          aria-pressed={mark.selected}
+          aria-label={`${mark.selected ? "Dejar sin tapar" : "Tapar"}: ${mark.label}`}
+          title={mark.label}
+          tabIndex={-1}
+          disabled={disabled}
+          style={{
+            left: `${(mark.rect.x / size.width) * 100}%`,
+            top: `${(mark.rect.y / size.height) * 100}%`,
+            width: `${(mark.rect.width / size.width) * 100}%`,
+            height: `${(mark.rect.height / size.height) * 100}%`,
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggle?.(mark.id);
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+        />
+      ))}
+    </>
+  );
+}
+
+function PageTile({ as, page, index, total, mode, preview, selectable, isSelected, isActive, group, startsGroup, cut, cutsEditable, disabled, sortable, register, onClick, onKeyDown, onFocus, onRotate, onDuplicate, onRemove, onToggleCut, marks, onToggleMark }: TileProps) {
   const { setNodeRef, listeners, style, dimmed, justDropped } = useSortableTile(page.key, disabled || !sortable);
   const label = pageLabel(page);
   const Tag = as;
@@ -480,13 +536,15 @@ function PageTile({ as, page, index, total, mode, preview, selectable, isSelecte
       {...listeners}
     >
       <div className="page-frame">
-        <Thumb size={preview.pages[page.source]} turns={page.turns} src={preview.thumbnails[page.source]} state={thumbState(preview, page.source)} fallback={String(page.source + 1)} />
+        <Thumb size={preview.pages[page.source]} turns={page.turns} src={preview.thumbnails[page.source]} state={thumbState(preview, page.source)} fallback={String(page.source + 1)}>
+          {marks && marks.length > 0 && <MarkLayer marks={marks} size={preview.pages[page.source]} disabled={disabled} onToggle={onToggleMark} />}
+        </Thumb>
         {isSelected && (
           <span className="page-check" aria-hidden="true">
             <Icon name="check" size={14} />
           </span>
         )}
-        {mode !== "split" && !disabled && (
+        {(mode === "organize" || mode === "rotate") && !disabled && (
           <div className="page-actions">
             <TileButton icon="rotateCcw" label="Girar a la izquierda" onClick={() => onRotate(-1)} />
             <TileButton icon="rotateCw" label="Girar a la derecha" onClick={() => onRotate(1)} />

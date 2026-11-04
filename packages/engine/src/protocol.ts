@@ -27,6 +27,45 @@ export interface InputFile {
   bytes: ArrayBuffer;
 }
 
+/** Categorías de datos personales que el motor sabe localizar en el texto de un PDF. */
+export type RedactCategory = "curp" | "rfc" | "nss" | "email" | "phone" | "custom";
+
+export interface RedactOptions {
+  categories: RedactCategory[];
+  /** Textos adicionales a localizar (nombres, direcciones…), sin distinguir mayúsculas ni acentos. */
+  terms: string[];
+}
+
+/** Rectángulo en el espacio de la página ya girada: origen arriba a la izquierda, en puntos PDF. */
+export interface RedactRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface RedactMatch {
+  id: string;
+  /** Índice 0-based de la página. */
+  page: number;
+  category: RedactCategory;
+  text: string;
+  rects: RedactRect[];
+}
+
+export interface RedactScan {
+  matches: RedactMatch[];
+  pageCount: number;
+  /** Páginas sin ningún texto reconocible (escaneos sin OCR): ahí no se busca nada. */
+  textlessPages: number;
+}
+
+/** Zonas que se eliminan de una página al tapar. */
+export interface RedactArea {
+  page: number;
+  rects: RedactRect[];
+}
+
 export interface OutputFile {
   name: string;
   mime: "application/pdf";
@@ -45,7 +84,8 @@ export type EngineOp =
   | { op: "compress"; input: InputFile; target: CompressTarget }
   | { op: "imagesToPdf"; inputs: InputFile[]; paper: Paper | "fit" }
   | { op: "ineSheet"; front: InputFile; back: InputFile; paper: Paper }
-  | { op: "cfdiToPdf"; inputs: InputFile[] };
+  | { op: "cfdiToPdf"; inputs: InputFile[] }
+  | { op: "redact"; input: InputFile; areas: RedactArea[]; stripMetadata: boolean };
 
 export type EngineOpName = EngineOp["op"];
 
@@ -102,7 +142,8 @@ export interface PageThumbnail {
 
 export type EngineRequest =
   | { id: string; kind: "run"; op: EngineOp }
-  | { id: string; kind: "preview"; input: InputFile; options: PreviewOptions };
+  | { id: string; kind: "preview"; input: InputFile; options: PreviewOptions }
+  | { id: string; kind: "scan"; input: InputFile; options: RedactOptions };
 
 export type EngineEvent =
   | { type: "progress"; id: string; progress: number; stage: string }
@@ -111,6 +152,7 @@ export type EngineEvent =
   | { type: "preview.info"; id: string; info: PreviewInfo }
   | { type: "preview.page"; id: string; thumbnail: PageThumbnail }
   | { type: "preview.done"; id: string }
+  | { type: "scan.done"; id: string; scan: RedactScan }
   | EngineLoadEvent;
 
 /** Descarga del motor (WASM) dentro del worker. `total` es null cuando el servidor no informa el tamaño. */

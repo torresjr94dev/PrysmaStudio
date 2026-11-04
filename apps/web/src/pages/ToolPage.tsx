@@ -1,4 +1,4 @@
-import { EngineFailure, type EngineMetrics, type InputFile } from "@prysmastudio/engine";
+import { EngineFailure, type EngineMetrics, type InputFile, type RedactArea, type RedactOptions, type RedactRect } from "@prysmastudio/engine";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,8 +8,9 @@ import { EngineLoader } from "../components/EngineLoader.tsx";
 import { DropOverlay, Dropzone, deliverFiles, useFilePicker, useWindowFileDrop } from "../components/FilePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { OptionsForm } from "../components/OptionsForm.tsx";
-import { PageGrid, resetPages } from "../components/PageGrid.tsx";
+import { PageGrid, resetPages, type PageMark } from "../components/PageGrid.tsx";
 import { Progress } from "../components/Progress.tsx";
+import { RedactPanel, matchLabel, type ScanState } from "../components/RedactPanel.tsx";
 import { ResultView, type Result } from "../components/ResultView.tsx";
 import { engine } from "../lib/engine.ts";
 import { clientByteBudget, formatBytes, newKey, pluralize, toInput } from "../lib/files.ts";
@@ -17,7 +18,7 @@ import { takeHandedOffFiles } from "../lib/handoff.ts";
 import { useDocumentPreview } from "../lib/preview.ts";
 import { linkHandler, useDocumentTitle } from "../lib/router.ts";
 import { ServerFailure, runServerJob, type Capabilities } from "../lib/server.ts";
-import { acceptOf, splitCuts, type EditSummary, type PageItem, type Tool, type Values, type WorkInput } from "../tools/registry.ts";
+import { acceptOf, redactOptionsOf, splitCuts, type EditSummary, type PageItem, type Tool, type Values, type WorkInput } from "../tools/registry.ts";
 
 const ACCESS_KEY_STORAGE = "prysma:access-key";
 
@@ -78,6 +79,9 @@ export function ToolPage({ tool, capabilities }: Props) {
   const [slots, setSlots] = useState<Record<string, File>>({});
   const [pages, setPages] = useState<PageItem[]>([]);
   const [cuts, setCuts] = useState<number[]>([]);
+  const [scan, setScan] = useState<ScanState>({ status: "idle", result: null, error: null });
+  /** Coincidencias que el usuario dejó fuera (por id); todo lo demás se tapa. */
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
   const [issues, setIssues] = useState<Record<string, FileIssue>>({});
   const [values, setValues] = useState<Values>(tool.defaults);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -90,18 +94,72 @@ export function ToolPage({ tool, capabilities }: Props) {
   itemsRef.current = items;
 
   const usesSingle = workspace.kind === "single" || workspace.kind === "pages";
+  const redactMode = workspace.kind === "pages" && workspace.edit === "redact";
   const preview = useDocumentPreview(usesSingle ? single : null, workspace.kind === "pages" ? "all" : "first");
 
   const running = phase.kind === "running";
   const hasContent =
     workspace.kind === "files" ? items.length > 0 : workspace.kind === "slots" ? Object.keys(slots).length > 0 : single !== null;
 
-  // Cada documento nuevo arranca con sus páginas en orden original y sin cortes.
+  // Cada documento nuevo arranca con sus páginas en orden original, sin cortes y sin exclusiones.
   useEffect(() => {
     if (workspace.kind !== "pages") return;
     setPages(resetPages(preview.pageCount));
     setCuts([]);
+    setExcluded(new Set());
   }, [workspace.kind, preview.pageCount, single]);
+
+  // Búsqueda de datos personales: al leer el documento y cada vez que cambian los criterios, con una
+  // pausa para no escanear en cada tecla. El escaneo no toca el documento; el motor se queda con una copia.
+  const previewBlocked = preview.status === "encrypted" || preview.status === "error";
+  const redactOptionsKey = redactMode ? JSON.stringify(redactOptionsOf(values)) : "";
+  useEffect(() => {
+    if (!redactMode || !single || preview.pageCount === 0 || previewBlocked) {
+      setScan({ status: "idle", result: null, error: null });
+      return;
+    }
+    const file = single;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setScan((current) => ({ status: "scanning", result: current.result, error: null }));
+      void (async () => {
+        try {
+          const result = await engine().scan({ name: file.name, bytes: await file.arrayBuffer() }, JSON.parse(redactOptionsKey) as RedactOptions, { signal: controller.signal });
+          if (!controller.signal.aborted) setScan({ status: "ready", result, error: null });
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          if (!(error instanceof EngineFailure)) console.error(error);
+          setScan({ status: "error", result: null, error: error instanceof EngineFailure ? error.message : "No se pudo analizar el documento." });
+        }
+      })();
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [redactMode, single, preview.pageCount, previewBlocked, redactOptionsKey]);
+
+  const matches = scan.result?.matches ?? [];
+  const selectedMatches = matches.filter((match) => !excluded.has(match.id));
+  const redactions: RedactArea[] = (() => {
+    const byPage = new Map<number, RedactRect[]>();
+    for (const match of selectedMatches) byPage.set(match.page, [...(byPage.get(match.page) ?? []), ...match.rects]);
+    return [...byPage].map(([page, rects]) => ({ page, rects }));
+  })();
+  const marks: Record<number, PageMark[]> = {};
+  for (const match of matches) {
+    for (const [index, rect] of match.rects.entries()) {
+      (marks[match.page] ??= []).push({ id: match.id, rect, category: match.category, selected: !excluded.has(match.id), label: matchLabel(match) });
+      if (index > 0) break;
+    }
+  }
+  const toggleMatch = (id: string) =>
+    setExcluded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -165,7 +223,7 @@ export function ToolPage({ tool, capabilities }: Props) {
   const needsKey = tool.runtime === "server" && capabilities?.requiresAccessKey === true;
 
   const effectiveCuts = workspace.kind === "pages" && workspace.edit === "split" ? splitCuts(values, { pageCount: pages.length, cuts }) : cuts;
-  const edit: EditSummary = { pageCount: preview.pageCount, pages, cuts: effectiveCuts };
+  const edit: EditSummary = { pageCount: preview.pageCount, pages, cuts: effectiveCuts, redactions: selectedMatches.length };
 
   const encryptedBlocks = usesSingle && preview.status === "encrypted" && tool.slug !== "desbloquear-pdf";
   const blockingIssue = encryptedBlocks
@@ -182,7 +240,7 @@ export function ToolPage({ tool, capabilities }: Props) {
       case "slots":
         return workspace.slots.every((slot) => slots[slot.key]);
       case "pages":
-        return single !== null && preview.pageCount > 0 && pages.length > 0;
+        return single !== null && preview.pageCount > 0 && pages.length > 0 && (!redactMode || scan.status === "ready");
       default:
         return single !== null;
     }
@@ -195,6 +253,7 @@ export function ToolPage({ tool, capabilities }: Props) {
     setIssues({});
     setPages([]);
     setCuts([]);
+    setExcluded(new Set());
     setPhase({ kind: "idle" });
   };
 
@@ -225,6 +284,7 @@ export function ToolPage({ tool, capabilities }: Props) {
           ),
           pages,
           cuts: effectiveCuts,
+          redactions,
         };
         const result = await engine().run(tool.build(input, values), { onProgress, signal: controller.signal });
         setDownloaded(false);
@@ -405,6 +465,8 @@ export function ToolPage({ tool, capabilities }: Props) {
                   }
                   onClearCuts={() => setCuts([])}
                   disabled={running}
+                  marks={redactMode ? marks : undefined}
+                  onToggleMark={redactMode ? toggleMatch : undefined}
                 />
               )}
               {preview.status === "loading" && preview.pageCount === 0 && (
@@ -432,6 +494,15 @@ export function ToolPage({ tool, capabilities }: Props) {
           {serverNotice}
 
           <OptionsForm fields={tool.fields} values={values} onChange={setValues} disabled={running} />
+          {redactMode && single && (
+            <RedactPanel
+              scan={scan}
+              excluded={excluded}
+              onToggle={toggleMatch}
+              onSetAll={(selected) => setExcluded(selected ? new Set() : new Set(matches.map((match) => match.id)))}
+              disabled={running}
+            />
+          )}
 
           {needsKey && (
             <div className="field">

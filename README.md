@@ -15,6 +15,7 @@ al peso exacto que pide cada portal.
 |---|---|---|
 | INE por ambos lados | Tu equipo | Frente y reverso en una hoja, a tamaño real, en Carta u Oficio |
 | CFDI (XML) a PDF | Tu equipo | Factura, nómina o complemento de pago del SAT como PDF legible, con QR, sellos y cadena original |
+| Tapar datos personales | Tu equipo | Encuentra CURP, RFC, NSS, correos, teléfonos o textos propios y los elimina del PDF (no solo los cubre) |
 | Comprimir PDF | Tu equipo | Presets o «que pese menos de X MB» para portales con límite |
 | Unir PDF | Tu equipo | Arrastra para elegir el orden |
 | Dividir PDF | Tu equipo | Cortes con tijeras entre páginas, cada N páginas o todas por separado |
@@ -59,7 +60,7 @@ Requisitos: Node ≥ 24, pnpm 12 (`corepack enable`), [uv](https://docs.astral.s
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:5173: las 10 herramientas locales
+pnpm dev            # http://localhost:5173: las 11 herramientas locales
 ```
 
 Para las herramientas de servidor en desarrollo (Vite redirige `/v1` al puerto 8080):
@@ -146,7 +147,6 @@ deploy/            Dockerfiles, compose y Caddyfile con las cabeceras de segurid
 
 ## Próximamente
 
-- Tapar datos personales (CURP, RFC) antes de compartir un documento
 - Firma con e.firma (PAdES)
 
 ## Licencia

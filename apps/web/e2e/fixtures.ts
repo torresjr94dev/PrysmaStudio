@@ -36,6 +36,32 @@ export function makePdf(pages: number, label: string, size: [number, number] = [
   return { name: `${label}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(body, "latin1") };
 }
 
+/** PDF escrito a mano con varias líneas de texto por página (solo ASCII), para buscar datos personales. */
+export function makeTextPdf(pages: string[][], name = "expediente.pdf"): FilePayload {
+  const escape = (line: string) => line.replace(/[\\()]/g, (char) => `\\${char}`);
+  const objects: string[] = [];
+  const kids = Array.from({ length: pages.length }, (_, i) => `${4 + i * 2} 0 R`).join(" ");
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`;
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  pages.forEach((lines, i) => {
+    const content = `BT /F1 12 Tf 72 720 Td ${lines.map((line) => `(${escape(line)}) Tj 0 -20 Td`).join(" ")} ET`;
+    objects[4 + i * 2] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + i * 2} 0 R >>`;
+    objects[5 + i * 2] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+  let body = "%PDF-1.7\n";
+  const offsets: number[] = [];
+  for (let num = 1; num < objects.length; num++) {
+    offsets[num] = body.length;
+    body += `${num} 0 obj\n${objects[num]}\nendobj\n`;
+  }
+  const xref = body.length;
+  body += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let num = 1; num < objects.length; num++) body += `${String(offsets[num]).padStart(10, "0")} 00000 n \n`;
+  body += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return { name, mimeType: "application/pdf", buffer: Buffer.from(body, "latin1") };
+}
+
 /** PNG RGB generado con zlib: cuatro cuadrantes de color (sirve para INE e imágenes a PDF). */
 export function makePng(width: number, height: number, name: string): FilePayload {
   const raw = Buffer.alloc((width * 3 + 1) * height);

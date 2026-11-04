@@ -1,15 +1,4 @@
-import type {
-  EngineErrorCode,
-  EngineEvent,
-  EngineLoadEvent,
-  EngineOp,
-  EngineRequest,
-  EngineResult,
-  InputFile,
-  PageThumbnail,
-  PreviewInfo,
-  PreviewOptions,
-} from "./protocol.ts";
+import type { EngineErrorCode, EngineEvent, EngineLoadEvent, EngineOp, EngineRequest, EngineResult, InputFile, PageThumbnail, PreviewInfo, PreviewOptions, RedactOptions, RedactScan } from "./protocol.ts";
 
 /** Error recibido del worker, con el mismo código que usa el servidor. */
 export class EngineFailure extends Error {
@@ -116,6 +105,30 @@ export class EngineClient {
               return false;
             case "preview.done":
               resolve();
+              return true;
+            case "error":
+              reject(new EngineFailure(event.code, event.detail));
+              return true;
+            default:
+              return false;
+          }
+        },
+      });
+    });
+  }
+
+  /** Localiza datos personales en el texto del PDF sin modificarlo. */
+  scan(input: InputFile, options: RedactOptions, extra: { signal?: AbortSignal } = {}): Promise<RedactScan> {
+    return new Promise<RedactScan>((resolve, reject) => {
+      this.#enqueue({
+        request: { id: crypto.randomUUID(), kind: "scan", input, options },
+        transfer: [input.bytes],
+        signal: extra.signal,
+        fail: reject,
+        onEvent: (event) => {
+          switch (event.type) {
+            case "scan.done":
+              resolve(event.scan);
               return true;
             case "error":
               reject(new EngineFailure(event.code, event.detail));

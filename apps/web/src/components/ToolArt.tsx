@@ -62,6 +62,13 @@ export function ToolArt({ slug }: { slug: string }) {
           <i className="art-tag">PDF</i>
         </span>
       );
+    case "tapar-datos":
+      return (
+        <span className="tool-art" data-art={slug} aria-hidden="true">
+          <i className="art-sheet a" />
+          <i className="art-bar" />
+        </span>
+      );
     case "cfdi-a-pdf":
       return (
         <span className="tool-art" data-art={slug} aria-hidden="true">

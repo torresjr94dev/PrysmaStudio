@@ -3582,6 +3582,32 @@ kbd {
   transform: scale(1);
 }
 
+/* Tapar datos: una barra negra cubre la segunda línea de la hoja al pasar el cursor. */
+.art-bar {
+  position: absolute;
+  top: calc(50% - 16px + 13px);
+  left: calc(50% - 12px + 5px);
+  width: 14px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--color-text);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-slow) var(--ease);
+}
+
+[data-art="tapar-datos"] .a {
+  transform: rotate(-3deg);
+}
+
+.tool-card:hover [data-art="tapar-datos"] .a {
+  transform: rotate(0deg);
+}
+
+.tool-card:hover [data-art="tapar-datos"] .art-bar {
+  transform: scaleX(1);
+}
+
 /* CFDI: la hoja recibe su código QR al pasar el cursor. */
 .art-qr {
   position: absolute;
@@ -4234,4 +4260,135 @@ kbd {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* --- Tapar datos personales ------------------------------------------------------------------ */
+
+/* Marca sobre la miniatura: porcentajes de la hoja, así sigue al zoom y al giro. */
+/* Mínimos pequeños a propósito: con líneas de 12 pt a zoom bajo, marcas más altas se pisarían entre sí.
+   La lista del panel es el control preciso; la marca es la referencia visual. */
+.redact-mark {
+  position: absolute;
+  box-sizing: border-box;
+  min-width: 8px;
+  min-height: 4px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--color-danger);
+  border-radius: 2px;
+  background: rgb(166 121 121 / 0.45);
+  cursor: pointer;
+  transition:
+    background var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.redact-mark:hover {
+  background: rgb(166 121 121 / 0.7);
+}
+
+.redact-mark[data-selected="false"] {
+  border-style: dashed;
+  border-color: var(--color-text-muted);
+  background: rgb(0 0 0 / 0.06);
+}
+
+.redact-mark:disabled {
+  cursor: default;
+}
+
+.redact-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.redact-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.redact-summary p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.redact-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.link-button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.redact-list {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.redact-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.redact-item:hover {
+  background: var(--color-surface-raised);
+}
+
+.redact-item[data-selected="false"] .redact-text {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.redact-item input {
+  margin: 0;
+  accent-color: var(--color-danger);
+}
+
+.redact-text {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.redact-page,
+.redact-more {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.redact-more {
+  padding: var(--space-2);
 }

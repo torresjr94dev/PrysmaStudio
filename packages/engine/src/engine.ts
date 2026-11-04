@@ -2,12 +2,13 @@ import { EngineError } from "./errors.ts";
 import { cfdiToPdf } from "./ops/cfdi.ts";
 import { compress } from "./ops/compress.ts";
 import { imagesToPdf, ineSheet } from "./ops/images.ts";
+import { redact, scan } from "./ops/redact.ts";
 import { protect, unlock } from "./ops/security.ts";
 import { arrange, merge, organize, rotate, split } from "./ops/structure.ts";
 import { preview, type PreviewSink } from "./ops/preview.ts";
 import type { Report } from "./ops/types.ts";
 import { resetMupdfWarnings, takeMupdfWarnings } from "./pdf.ts";
-import type { EngineOp, EngineResult, InputFile, OutputFile, PreviewOptions } from "./protocol.ts";
+import type { EngineOp, EngineResult, InputFile, OutputFile, PreviewOptions, RedactOptions, RedactScan } from "./protocol.ts";
 
 function inputsOf(op: EngineOp): InputFile[] {
   switch (op.op) {
@@ -46,6 +47,8 @@ function execute(op: EngineOp, report: Report, warnings: string[]): OutputFile[]
       return ineSheet(op.front, op.back, op.paper, report);
     case "cfdiToPdf":
       return cfdiToPdf(op.inputs, report, warnings);
+    case "redact":
+      return redact(op.input, op.areas, op.stripMetadata, report);
     default: {
       const unknown: never = op;
       throw new EngineError("input.invalid", `Operación desconocida: ${JSON.stringify(unknown)}`);
@@ -80,6 +83,15 @@ export function runOp(op: EngineOp, report: Report): EngineResult {
       durationMs: Math.round(performance.now() - started),
     },
   };
+}
+
+export function runScan(input: InputFile, options: RedactOptions): RedactScan {
+  resetMupdfWarnings();
+  try {
+    return scan(input, options);
+  } finally {
+    takeMupdfWarnings();
+  }
 }
 
 export function runPreview(input: InputFile, options: PreviewOptions, sink: PreviewSink): void {

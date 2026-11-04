@@ -1,4 +1,4 @@
-import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn } from "@prysmastudio/engine";
+import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn, RedactArea, RedactCategory, RedactOptions } from "@prysmastudio/engine";
 import type { IconName } from "../components/Icon.tsx";
 import type { ServerStep } from "../lib/server.ts";
 
@@ -33,7 +33,7 @@ export interface PageItem {
   turns: number;
 }
 
-export type PageEditMode = "organize" | "rotate" | "split";
+export type PageEditMode = "organize" | "rotate" | "split" | "redact";
 
 export type Workspace =
   /** Varios archivos reordenables (unir, imágenes a PDF). */
@@ -51,6 +51,8 @@ export interface WorkInput {
   pages: PageItem[];
   /** Posiciones (0-based) después de las cuales se corta, en orden. */
   cuts: number[];
+  /** Zonas aprobadas por el usuario para tapar (modo redact). */
+  redactions: RedactArea[];
 }
 
 /** Lo que el editor visual sabe antes de leer los bytes: para validar sin tocar el motor. */
@@ -58,6 +60,8 @@ export interface EditSummary {
   pageCount: number;
   pages: PageItem[];
   cuts: number[];
+  /** Coincidencias seleccionadas para tapar (modo redact). */
+  redactions: number;
 }
 
 export type Category = "tramites" | "organizar" | "optimizar" | "convertir" | "seguridad";
@@ -159,6 +163,17 @@ export function everyNCuts(every: number, pageCount: number): number[] {
   return cuts;
 }
 
+/** Criterios de búsqueda de datos personales a partir del formulario. */
+export function redactOptionsOf(values: Values): RedactOptions {
+  return {
+    categories: list(values, "categories") as RedactCategory[],
+    terms: str(values, "terms")
+      .split(",")
+      .map((term) => term.trim())
+      .filter(Boolean),
+  };
+}
+
 export function splitCuts(values: Values, edit: Pick<EditSummary, "pageCount" | "cuts">): number[] {
   const mode = str(values, "mode");
   if (mode === "each") return everyNCuts(1, edit.pageCount);
@@ -205,6 +220,51 @@ export const TOOLS: Tool[] = [
     fields: [],
     defaults: {},
     build: (input) => ({ op: "cfdiToPdf", inputs: input.files }),
+  },
+  {
+    slug: "tapar-datos",
+    runtime: "client",
+    category: "tramites",
+    title: "Tapar datos personales",
+    summary: "Encuentra CURP, RFC, NSS, correos o teléfonos y los elimina del PDF antes de compartirlo. No los cubre: los borra.",
+    icon: "eyeOff",
+    action: "Tapar datos",
+    workspace: { kind: "pages", edit: "redact" },
+    fields: [
+      {
+        type: "toggles",
+        key: "categories",
+        label: "Buscar",
+        options: [
+          { value: "curp", label: "CURP" },
+          { value: "rfc", label: "RFC" },
+          { value: "nss", label: "Número de seguridad social" },
+          { value: "email", label: "Correos electrónicos" },
+          { value: "phone", label: "Teléfonos" },
+        ],
+      },
+      {
+        type: "text",
+        key: "terms",
+        label: "Otros datos a tapar",
+        placeholder: "Nombre, dirección, folio… separados por comas",
+        hint: "Se buscan tal cual, sin distinguir mayúsculas ni acentos. Mínimo 3 caracteres cada uno.",
+      },
+      {
+        type: "toggles",
+        key: "extras",
+        label: "Además",
+        options: [{ value: "metadata", label: "Quitar autor y título del archivo" }],
+      },
+    ],
+    defaults: { categories: ["curp", "rfc", "nss"], terms: "", extras: ["metadata"] },
+    validate: (_values, edit) => (edit.redactions === 0 ? "No hay ningún dato seleccionado para tapar." : null),
+    build: (input, values) => ({
+      op: "redact",
+      input: first(input),
+      areas: input.redactions,
+      stripMetadata: list(values, "extras").includes("metadata"),
+    }),
   },
   {
     slug: "comprimir-pdf",

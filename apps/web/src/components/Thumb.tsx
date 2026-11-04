@@ -1,4 +1,5 @@
 import type { PageSize } from "@prysmastudio/engine";
+import type { ReactNode } from "react";
 import { Icon } from "./Icon.tsx";
 
 export type ThumbState = "loading" | "ready" | "missing" | "locked";
@@ -11,6 +12,8 @@ interface Props {
   state: ThumbState;
   /** Texto que se muestra cuando no hay imagen (número de página, extensión…). */
   fallback?: string;
+  /** Capa sobre la hoja (marcas de redacción): se posiciona en porcentajes del tamaño de página. */
+  children?: ReactNode;
 }
 
 const LETTER: PageSize = { width: 612, height: 792 };
@@ -21,7 +24,7 @@ const LETTER: PageSize = { width: 612, height: 792 };
  * (con perspectiva y un resorte sin rebote, ver --ease-spring). Una hoja bloqueada se funde a la mitad
  * y un candado con cristal la cubre.
  */
-export function Thumb({ size = LETTER, turns = 0, src, state, fallback }: Props) {
+export function Thumb({ size = LETTER, turns = 0, src, state, fallback, children }: Props) {
   const longest = Math.max(size.width, size.height, 1);
   return (
     <div className="thumb">
@@ -41,6 +44,7 @@ export function Thumb({ size = LETTER, turns = 0, src, state, fallback }: Props)
         ) : (
           <span className="thumb-fallback">{fallback}</span>
         )}
+        {children}
       </div>
       {state === "locked" && (
         <span className="thumb-lock" aria-hidden="true">

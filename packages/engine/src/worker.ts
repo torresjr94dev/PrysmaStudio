@@ -1,6 +1,6 @@
 // Punto de entrada del Web Worker. El motor (≈10 MB de WASM) se importa de forma diferida para que
 // el manejador de mensajes exista desde el primer instante y ningún mensaje se pierda durante la carga.
-import type { EngineEvent, EngineOp, EngineRequest, InputFile, PreviewOptions } from "./protocol.ts";
+import type { EngineEvent, EngineOp, EngineRequest, InputFile, PreviewOptions, RedactOptions } from "./protocol.ts";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -126,11 +126,17 @@ async function handlePreview(id: string, input: InputFile, options: PreviewOptio
   post({ type: "preview.done", id });
 }
 
+async function handleScan(id: string, input: InputFile, options: RedactOptions): Promise<void> {
+  const { runScan } = await engine;
+  post({ type: "scan.done", id, scan: runScan(input, options) });
+}
+
 self.addEventListener("message", (event: MessageEvent<EngineRequest>) => {
   const request = event.data;
   void (async () => {
     try {
       if (request.kind === "preview") await handlePreview(request.id, request.input, request.options);
+      else if (request.kind === "scan") await handleScan(request.id, request.input, request.options);
       else await handleRun(request.id, request.op);
     } catch (error) {
       await reportFailure(request.id, error);
