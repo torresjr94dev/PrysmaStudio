@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # Construye la PWA y la sirve con Caddy (TLS automático, cabeceras de seguridad, proxy al servidor).
-FROM node:24-trixie-slim AS build
+FROM node:26-trixie-slim AS build
 RUN apt-get update \
  && apt-get install -y --no-install-recommends brotli \
  && rm -rf /var/lib/apt/lists/* \
