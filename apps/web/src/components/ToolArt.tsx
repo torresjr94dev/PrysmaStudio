@@ -62,6 +62,18 @@ export function ToolArt({ slug }: { slug: string }) {
           <i className="art-tag">PDF</i>
         </span>
       );
+    case "cfdi-a-pdf":
+      return (
+        <span className="tool-art" data-art={slug} aria-hidden="true">
+          <i className="art-sheet a" />
+          <i className="art-qr">
+            <i />
+            <i />
+            <i />
+            <i />
+          </i>
+        </span>
+      );
     default:
       return null;
   }

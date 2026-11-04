@@ -3582,6 +3582,44 @@ kbd {
   transform: scale(1);
 }
 
+/* CFDI: la hoja recibe su código QR al pasar el cursor. */
+.art-qr {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+  border-radius: 3px;
+  background: var(--color-accent);
+  transform: scale(0);
+  transition: transform var(--duration-spring) var(--ease-spring);
+}
+
+.art-qr i {
+  border-radius: 1px;
+  background: var(--color-accent-contrast);
+}
+
+.art-qr i:nth-child(4) {
+  opacity: 0.45;
+}
+
+[data-art="cfdi-a-pdf"] .a {
+  transform: translateX(-6px) rotate(-4deg);
+}
+
+.tool-card:hover [data-art="cfdi-a-pdf"] .a {
+  transform: translateX(-2px) rotate(0deg);
+}
+
+.tool-card:hover [data-art="cfdi-a-pdf"] .art-qr {
+  transform: scale(1);
+}
+
 /* Tarjeta destacada: la credencial por ambos lados sobre una hoja carta */
 .ine-art {
   position: relative;

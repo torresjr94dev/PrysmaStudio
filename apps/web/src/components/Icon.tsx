@@ -49,6 +49,7 @@ const PATHS = {
   hash: "M4 9h16 M4 15h16 M10 3 8 21 M16 3l-2 18",
   bug: "M8 2l1.5 2 M16 2l-1.5 2 M9 7h6a3 3 0 0 1 3 3v6a6 6 0 0 1-12 0v-6a3 3 0 0 1 3-3z M3 13h3 M18 13h3 M4 20l3-2 M20 20l-3-2 M4 7l3 2 M20 7l-3 2",
   scale: "M12 3v18 M5 21h14 M3 7l4 8h-8z M17 7l4 8h-8z M3 7h18",
+  receipt: "M5 3h14v18l-2.33-1.5L14.33 21 12 19.5 9.67 21 7.33 19.5 5 21z M9 8h6 M9 12h6 M9 16h3",
 } as const;
 
 export type IconName = keyof typeof PATHS;

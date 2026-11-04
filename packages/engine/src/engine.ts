@@ -1,4 +1,5 @@
 import { EngineError } from "./errors.ts";
+import { cfdiToPdf } from "./ops/cfdi.ts";
 import { compress } from "./ops/compress.ts";
 import { imagesToPdf, ineSheet } from "./ops/images.ts";
 import { protect, unlock } from "./ops/security.ts";
@@ -12,6 +13,7 @@ function inputsOf(op: EngineOp): InputFile[] {
   switch (op.op) {
     case "merge":
     case "imagesToPdf":
+    case "cfdiToPdf":
       return op.inputs;
     case "ineSheet":
       return [op.front, op.back];
@@ -42,6 +44,8 @@ function execute(op: EngineOp, report: Report, warnings: string[]): OutputFile[]
       return imagesToPdf(op.inputs, op.paper, report);
     case "ineSheet":
       return ineSheet(op.front, op.back, op.paper, report);
+    case "cfdiToPdf":
+      return cfdiToPdf(op.inputs, report, warnings);
     default: {
       const unknown: never = op;
       throw new EngineError("input.invalid", `Operación desconocida: ${JSON.stringify(unknown)}`);

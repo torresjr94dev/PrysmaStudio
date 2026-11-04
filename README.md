@@ -6,14 +6,15 @@
 **Herramientas PDF que trabajan en tu navegador. Tus archivos no se suben a ningún lado.**
 
 Une, divide, organiza, comprime y protege PDF directamente en tu equipo, sin registro y sin límites.
-Pensado para los trámites en México: INE por ambos lados, papel oficio y compresión al peso exacto que
-pide cada portal.
+Pensado para los trámites en México: INE por ambos lados, CFDI del SAT a PDF, papel oficio y compresión
+al peso exacto que pide cada portal.
 
 ## Herramientas
 
 | Herramienta | Dónde corre | Qué hace |
 |---|---|---|
 | INE por ambos lados | Tu equipo | Frente y reverso en una hoja, a tamaño real, en Carta u Oficio |
+| CFDI (XML) a PDF | Tu equipo | Factura, nómina o complemento de pago del SAT como PDF legible, con QR, sellos y cadena original |
 | Comprimir PDF | Tu equipo | Presets o «que pese menos de X MB» para portales con límite |
 | Unir PDF | Tu equipo | Arrastra para elegir el orden |
 | Dividir PDF | Tu equipo | Cortes con tijeras entre páginas, cada N páginas o todas por separado |
@@ -58,7 +59,7 @@ Requisitos: Node ≥ 24, pnpm 12 (`corepack enable`), [uv](https://docs.astral.s
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:5173: las 9 herramientas locales
+pnpm dev            # http://localhost:5173: las 10 herramientas locales
 ```
 
 Para las herramientas de servidor en desarrollo (Vite redirige `/v1` al puerto 8080):
@@ -145,7 +146,6 @@ deploy/            Dockerfiles, compose y Caddyfile con las cabeceras de segurid
 
 ## Próximamente
 
-- CFDI (XML del SAT) a PDF legible, 100 % local
 - Tapar datos personales (CURP, RFC) antes de compartir un documento
 - Firma con e.firma (PAdES)
 

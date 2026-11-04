@@ -89,6 +89,29 @@ export function makeEncryptedPdf(password: string): FilePayload {
   return { name: "protegido.pdf", mimeType: "application/pdf", buffer: bytes };
 }
 
+export const CFDI_UUID = "7A2B1C3D-4E5F-4A6B-8C9D-0E1F2A3B4C5D";
+
+/** CFDI 4.0 de ingreso timbrado (sellos ficticios) con descuento, IVA y retenciones. */
+export function makeCfdi(name = "factura.xml"): FilePayload {
+  const sello = "nHDF/U6XvK9ko+F1ta8rwwTYcFUX6h1XqxfWJolHmqMM/NzWAm5fKvUtit/eDbft17Qi3Lqceso9/nNE+YzOTX9qRSm5FNzaLxIYGUj2ZEDoazMQLk==";
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="4.0" Serie="A" Folio="1024" Fecha="2026-03-15T10:22:31" Sello="${sello}" FormaPago="03" NoCertificado="30001000000500003416" Certificado="" SubTotal="1000.00" Descuento="50.00" Moneda="MXN" Total="905.67" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="06600">
+  <cfdi:Emisor Rfc="EKU9003173C9" Nombre="ESCUELA KEMPER URGATE" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="XAXX010101000" Nombre="PÚBLICO EN GENERAL" DomicilioFiscalReceptor="06600" RegimenFiscalReceptor="616" UsoCFDI="S01"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="81111500" Cantidad="2" ClaveUnidad="E48" Unidad="Unidad de servicio" Descripcion="Desarrollo de software a la medida" ValorUnitario="500.00" Importe="1000.00" Descuento="50.00" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosRetenidos="196.33" TotalImpuestosTrasladados="152.00">
+    <cfdi:Retenciones><cfdi:Retencion Impuesto="001" Importe="95.00"/><cfdi:Retencion Impuesto="002" Importe="101.33"/></cfdi:Retenciones>
+    <cfdi:Traslados><cfdi:Traslado Base="950.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="152.00"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="${CFDI_UUID}" FechaTimbrado="2026-03-15T10:22:40" RfcProvCertif="SPR190613I52" SelloCFD="${sello}" NoCertificadoSAT="30001000000500003456" SelloSAT="${sello}"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>`;
+  return { name, mimeType: "text/xml", buffer: Buffer.from(xml, "utf8") };
+}
+
 /** DOCX mínimo válido para LibreOffice, empaquetado con el mismo escritor ZIP que usa la app. */
 export async function makeDocx(lines: string[]): Promise<FilePayload> {
   const xml = (text: string) => new Blob([text], { type: "application/xml" });

@@ -118,7 +118,7 @@ interface TileProps {
 function FileTile({ item, index, total, disabled, onRemove, onMove, onIssue, onSnapshot }: TileProps) {
   const pdf = isPdf(item.file);
   const preview = useDocumentPreview(pdf ? item.file : null, "first");
-  const imageUrl = useObjectUrl(pdf ? null : item.file);
+  const imageUrl = useObjectUrl(!pdf && item.file.type.startsWith("image/") ? item.file : null);
   const { setNodeRef, listeners, style, dimmed, justDropped } = useSortableTile(item.key, disabled);
 
   useEffect(() => {
@@ -221,7 +221,12 @@ function FileTileView({ index, name, meta, pdf, preview, imageUrl, issue, action
             <img className="thumb-image" src={imageUrl} alt="" draggable={false} decoding="async" />
           </div>
         ) : (
-          <Thumb size={undefined} src={undefined} state="loading" />
+          <div className="thumb">
+            <div className="thumb-sheet is-document">
+              <Icon name="fileText" size={28} />
+              <span className="doc-extension">{extensionOf(name) || "?"}</span>
+            </div>
+          </div>
         )}
         {actions}
         {issue && (

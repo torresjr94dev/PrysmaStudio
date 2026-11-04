@@ -44,7 +44,8 @@ export type EngineOp =
   | { op: "unlock"; input: InputFile; password: string }
   | { op: "compress"; input: InputFile; target: CompressTarget }
   | { op: "imagesToPdf"; inputs: InputFile[]; paper: Paper | "fit" }
-  | { op: "ineSheet"; front: InputFile; back: InputFile; paper: Paper };
+  | { op: "ineSheet"; front: InputFile; back: InputFile; paper: Paper }
+  | { op: "cfdiToPdf"; inputs: InputFile[] };
 
 export type EngineOpName = EngineOp["op"];
 

@@ -102,6 +102,7 @@ export type Tool = ClientTool | ServerTool;
 export const PDF_ACCEPT = "application/pdf,.pdf";
 export const IMAGE_ACCEPT = "image/jpeg,image/png,.jpg,.jpeg,.png";
 export const OFFICE_ACCEPT = ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf";
+export const XML_ACCEPT = "text/xml,application/xml,.xml";
 
 const PAPER_OPTIONS: Option[] = [
   { value: "letter", label: "Carta" },
@@ -191,6 +192,19 @@ export const TOOLS: Tool[] = [
       back: slot(input, "back"),
       paper: str(values, "paper") as Paper,
     }),
+  },
+  {
+    slug: "cfdi-a-pdf",
+    runtime: "client",
+    category: "tramites",
+    title: "CFDI (XML) a PDF",
+    summary: "Tu factura, recibo de nómina o complemento de pago del SAT como PDF legible, con código QR y sellos.",
+    icon: "receipt",
+    action: "Crear PDF",
+    workspace: { kind: "files", accept: XML_ACCEPT, min: 1, max: 200, noun: { one: "XML", many: "XML" } },
+    fields: [],
+    defaults: {},
+    build: (input) => ({ op: "cfdiToPdf", inputs: input.files }),
   },
   {
     slug: "comprimir-pdf",
