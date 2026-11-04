@@ -1,9 +1,10 @@
-import { MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { CommandMenu } from "./components/CommandMenu.tsx";
 import { usePreventFileNavigation } from "./components/FilePicker.tsx";
 import { Icon } from "./components/Icon.tsx";
+import { ShortcutsDialog } from "./components/ShortcutsDialog.tsx";
 import { ToolMenu } from "./components/ToolMenu.tsx";
 import { linkHandler, usePath, useDocumentTitle } from "./lib/router.ts";
 import { fetchCapabilities, type Capabilities } from "./lib/server.ts";
@@ -109,6 +110,7 @@ export function App() {
   // undefined = comprobando; null = no hay servidor (la app sigue funcionando en modo solo-cliente).
   const [capabilities, setCapabilities] = useState<Capabilities | null | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   usePreventFileNavigation();
 
   useEffect(() => {
@@ -121,17 +123,20 @@ export function App() {
     return () => controller.abort();
   }, []);
 
-  // «/» o Ctrl/⌘+K abren la paleta desde cualquier página, salvo mientras se escribe en un campo
-  // o hay otro diálogo abierto.
+  // «/» o Ctrl/⌘+K abren la paleta y «?» el panel de atajos desde cualquier página, salvo mientras
+  // se escribe en un campo o hay otro diálogo abierto.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing = target?.closest("input, textarea, select, [contenteditable]");
-      const slash = event.key === "/" && !typing;
+      if (typing || document.querySelector("dialog[open]")) return;
       const commandK = event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey);
-      if ((slash || commandK) && !document.querySelector("dialog[open]")) {
+      if (event.key === "/" || commandK) {
         event.preventDefault();
         setSearchOpen(true);
+      } else if (event.key === "?") {
+        event.preventDefault();
+        setShortcutsOpen(true);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -169,16 +174,30 @@ export function App() {
         </div>
       </header>
       <main id="contenido" className="site-main">
-        {slug === "" ? (
-          <Home capabilities={capabilities} onSearch={openSearch} />
-        ) : tool ? (
-          <ToolPage key={tool.slug} tool={tool} capabilities={capabilities} />
-        ) : (
-          <NotFound />
-        )}
+        {/* La página saliente se queda en posición absoluta mientras se desvanece; la losa del icono viaja
+            de la tarjeta a la herramienta por layoutId. */}
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={slug || "inicio"}
+            className="route"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, position: "absolute", top: 0, left: 0, right: 0 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+          >
+            {slug === "" ? (
+              <Home capabilities={capabilities} onSearch={openSearch} />
+            ) : tool ? (
+              <ToolPage key={tool.slug} tool={tool} capabilities={capabilities} />
+            ) : (
+              <NotFound />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer tools={TOOLS} sourceUrl={sourceUrl} />
       <CommandMenu tools={TOOLS} capabilities={capabilities} open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {/* theme="system": sigue prefers-color-scheme; los colores los ponen los tokens en styles.css. */}
       <Toaster theme="system" position="bottom-right" offset={20} duration={4000} visibleToasts={4} gap={10} />
     </MotionConfig>

@@ -78,6 +78,8 @@ interface ToolBase {
   icon: IconName;
   /** Texto del botón principal. */
   action: string;
+  /** Tarjeta a doble ancho con ilustración en la portada (el diferenciador de la casa). */
+  featured?: boolean;
   workspace: Workspace;
   fields: Field[];
   defaults: Values;
@@ -172,6 +174,7 @@ export const TOOLS: Tool[] = [
     summary: "Frente y reverso de tu credencial en una sola hoja, a tamaño real y lista para imprimir.",
     icon: "idCard",
     action: "Crear hoja",
+    featured: true,
     workspace: {
       kind: "slots",
       accept: IMAGE_ACCEPT,

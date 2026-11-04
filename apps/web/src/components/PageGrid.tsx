@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import { newKey, pluralize } from "../lib/files.ts";
 import type { DocumentPreview } from "../lib/preview.ts";
 import { moveItems } from "../lib/sortable.ts";
@@ -19,6 +19,28 @@ interface Props {
   onToggleCut: (position: number) => void;
   onClearCuts: () => void;
   disabled: boolean;
+}
+
+const THUMB_STORAGE = "prysma:thumb-size";
+const THUMB_MIN = 100;
+const THUMB_MAX = 260;
+const THUMB_DEFAULT = 148;
+
+function readThumbSize(): number {
+  try {
+    const stored = Number(window.localStorage.getItem(THUMB_STORAGE));
+    return stored >= THUMB_MIN && stored <= THUMB_MAX ? stored : THUMB_DEFAULT;
+  } catch {
+    return THUMB_DEFAULT;
+  }
+}
+
+function storeThumbSize(size: number): void {
+  try {
+    window.localStorage.setItem(THUMB_STORAGE, String(size));
+  } catch {
+    // Almacenamiento bloqueado: el tamaño vive solo durante la sesión.
+  }
 }
 
 function initialPages(count: number): PageItem[] {
@@ -49,9 +71,20 @@ function pageLabel(page: PageItem): string {
   return `Página ${page.source + 1}${rotationLabel(page.turns)}`;
 }
 
+/** Pliegos como en un libro: la portada sola a la derecha y después pares (2-3, 4-5…). */
+function spreadsOf(pages: PageItem[]): PageItem[][] {
+  const spreads: PageItem[][] = [];
+  const [cover, ...rest] = pages;
+  if (cover) spreads.push([cover]);
+  for (let index = 0; index < rest.length; index += 2) spreads.push(rest.slice(index, index + 2));
+  return spreads;
+}
+
 export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditable, onToggleCut, onClearCuts, disabled }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [thumb, setThumb] = useState(readThumbSize);
+  const [spread, setSpread] = useState(false);
   const anchorRef = useRef<string | null>(null);
   const gridRef = useRef<HTMLOListElement>(null);
   const tiles = useRef(new Map<string, HTMLElement>());
@@ -61,6 +94,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
   const selectable = mode === "organize";
   const activeKey = focusKey && keys.includes(focusKey) ? focusKey : keys[0];
   const selection = keys.filter((key) => selected.has(key));
+  const sortable = mode === "organize" && !spread;
 
   const targets = (fallbackKey?: string): Set<string> =>
     selection.length > 0 ? new Set(selection) : fallbackKey ? new Set([fallbackKey]) : new Set();
@@ -147,7 +181,8 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
 
   const onTileKeyDown = (event: KeyboardEvent, page: PageItem, index: number) => {
     if (disabled) return;
-    const columns = gridColumns(gridRef.current);
+    // En vista de pliego cada celda de la cuadrícula contiene dos páginas.
+    const columns = gridColumns(gridRef.current) * (spread ? 2 : 1);
     const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns };
     const step = steps[event.key];
 
@@ -229,8 +264,59 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
     return page ? pageLabel(page) : "página";
   };
 
-  const groups = cuts.length + 1;
+  const changeThumb = (size: number) => {
+    setThumb(size);
+    storeThumbSize(size);
+  };
+
+  // Grupo (archivo resultante) de cada página en modo dividir.
+  const groupOf: number[] = [];
   let group = 0;
+  pages.forEach((_, index) => {
+    if (index > 0 && cutSet.has(index - 1)) group += 1;
+    groupOf.push(group);
+  });
+  const groups = cuts.length + 1;
+
+  const renderTile = (page: PageItem, index: number) => (
+    <PageTile
+      key={page.key}
+      as={spread ? "div" : "li"}
+      page={page}
+      index={index}
+      total={pages.length}
+      mode={mode}
+      preview={preview}
+      selectable={selectable}
+      isSelected={selected.has(page.key)}
+      isActive={page.key === activeKey}
+      group={groupOf[index] ?? 0}
+      startsGroup={index === 0 || cutSet.has(index - 1)}
+      cut={cutSet.has(index)}
+      cutsEditable={cutsEditable}
+      disabled={disabled}
+      sortable={sortable}
+      register={register}
+      onClick={(event) => onTileClick(event, page)}
+      onKeyDown={(event) => onTileKeyDown(event, page, index)}
+      onFocus={() => setFocusKey(page.key)}
+      onRotate={(delta) => rotate(new Set([page.key]), delta)}
+      onDuplicate={() => duplicate(new Set([page.key]))}
+      onRemove={() => remove(new Set([page.key]))}
+      onToggleCut={() => onToggleCut(index)}
+    />
+  );
+
+  const hint =
+    mode === "split"
+      ? cutsEditable
+        ? "Pasa el cursor entre dos páginas y haz clic en las tijeras para cortar ahí."
+        : "Los cortes se calculan con la regla elegida en el panel."
+      : spread
+        ? "Vista de pliego: revisa el orden y la orientación como quedarán impresos. Para reordenar, vuelve a la cuadrícula."
+        : mode === "organize"
+          ? "Arrastra para reordenar. Clic para seleccionar; Shift o Ctrl/⌘ para varias. Teclas: R gira, D duplica, Supr elimina, Alt+flechas mueve."
+          : "Haz clic en una página para girarla 90°. Usa los botones de cada página para elegir el sentido.";
 
   return (
     <div className="page-editor">
@@ -275,18 +361,38 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
               }}
             />
           )}
+          <span className="toolbar-divider" />
+          <ToolbarButton icon="book" label={spread ? "Vista de cuadrícula" : "Vista de pliego"} iconOnly pressed={spread} onClick={() => setSpread((current) => !current)} />
+          <label className="zoom" title="Tamaño de las miniaturas">
+            <Icon name="minus" size={14} />
+            <input
+              type="range"
+              min={THUMB_MIN}
+              max={THUMB_MAX}
+              step={20}
+              value={thumb}
+              aria-label="Tamaño de las miniaturas"
+              onChange={(event) => changeThumb(Number(event.target.value))}
+            />
+            <Icon name="plus" size={14} />
+          </label>
         </div>
       </div>
 
-      <p className="editor-hint">
-        {mode === "organize" && "Arrastra para reordenar. Clic para seleccionar; Shift o Ctrl/⌘ para varias. Teclas: R gira, D duplica, Supr elimina, Alt+flechas mueve."}
-        {mode === "rotate" && "Haz clic en una página para girarla 90°. Usa los botones de cada página para elegir el sentido."}
-        {mode === "split" && (cutsEditable ? "Pasa el cursor entre dos páginas y haz clic en las tijeras para cortar ahí." : "Los cortes se calculan con la regla elegida en el panel.")}
-      </p>
+      <p className="editor-hint">{hint}</p>
+
+      {mode === "split" && (
+        // Mapa de cortes: cada bloque es una página; los archivos resultantes alternan de tono.
+        <div className="cut-map" aria-hidden="true">
+          {pages.map((page, index) => (
+            <span key={page.key} className="cut-map-page" data-group={(groupOf[index] ?? 0) % 2} data-cut={cutSet.has(index) || undefined} />
+          ))}
+        </div>
+      )}
 
       <SortableGrid
         keys={keys}
-        disabled={disabled || mode !== "organize"}
+        disabled={disabled || !sortable}
         selected={selected}
         onMove={(moving, insertAt) => onPagesChange(moveItems(pages, (page) => page.key, moving, insertAt))}
         labelOf={labelOf}
@@ -298,7 +404,8 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
       >
         <ol
           ref={gridRef}
-          className={`page-grid is-${mode}`}
+          className={`page-grid is-${mode}${spread ? " is-spread" : ""}`}
+          style={{ "--thumb-size": `${thumb}px` } as CSSProperties}
           role={selectable ? "listbox" : "list"}
           aria-multiselectable={selectable || undefined}
           aria-label="Páginas del documento"
@@ -306,36 +413,13 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
             if (event.target === event.currentTarget) setSelected(new Set());
           }}
         >
-          {pages.map((page, index) => {
-            const startsGroup = index === 0 || cutSet.has(index - 1);
-            if (index > 0 && cutSet.has(index - 1)) group += 1;
-            return (
-              <PageTile
-                key={page.key}
-                page={page}
-                index={index}
-                total={pages.length}
-                mode={mode}
-                preview={preview}
-                selectable={selectable}
-                isSelected={selected.has(page.key)}
-                isActive={page.key === activeKey}
-                group={group}
-                startsGroup={startsGroup}
-                cut={cutSet.has(index)}
-                cutsEditable={cutsEditable}
-                disabled={disabled}
-                register={register}
-                onClick={(event) => onTileClick(event, page)}
-                onKeyDown={(event) => onTileKeyDown(event, page, index)}
-                onFocus={() => setFocusKey(page.key)}
-                onRotate={(delta) => rotate(new Set([page.key]), delta)}
-                onDuplicate={() => duplicate(new Set([page.key]))}
-                onRemove={() => remove(new Set([page.key]))}
-                onToggleCut={() => onToggleCut(index)}
-              />
-            );
-          })}
+          {spread
+            ? spreadsOf(pages).map((pair, position) => (
+                <li key={pair[0]?.key ?? position} className={`spread${position === 0 ? " is-cover" : ""}`} role="group">
+                  {pair.map((page) => renderTile(page, pages.indexOf(page)))}
+                </li>
+              ))
+            : pages.map(renderTile)}
         </ol>
       </SortableGrid>
     </div>
@@ -343,6 +427,7 @@ export function PageGrid({ mode, preview, pages, onPagesChange, cuts, cutsEditab
 }
 
 interface TileProps {
+  as: "li" | "div";
   page: PageItem;
   index: number;
   total: number;
@@ -356,9 +441,10 @@ interface TileProps {
   cut: boolean;
   cutsEditable: boolean;
   disabled: boolean;
+  sortable: boolean;
   register: (key: string, element: HTMLElement | null) => void;
-  onClick: (event: MouseEvent<HTMLLIElement>) => void;
-  onKeyDown: (event: KeyboardEvent<HTMLLIElement>) => void;
+  onClick: (event: MouseEvent<HTMLElement>) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
   onFocus: () => void;
   onRotate: (delta: 1 | -1) => void;
   onDuplicate: () => void;
@@ -366,13 +452,14 @@ interface TileProps {
   onToggleCut: () => void;
 }
 
-function PageTile({ page, index, total, mode, preview, selectable, isSelected, isActive, group, startsGroup, cut, cutsEditable, disabled, register, onClick, onKeyDown, onFocus, onRotate, onDuplicate, onRemove, onToggleCut }: TileProps) {
-  const { setNodeRef, listeners, style, dimmed, justDropped } = useSortableTile(page.key, disabled || mode !== "organize");
+function PageTile({ as, page, index, total, mode, preview, selectable, isSelected, isActive, group, startsGroup, cut, cutsEditable, disabled, sortable, register, onClick, onKeyDown, onFocus, onRotate, onDuplicate, onRemove, onToggleCut }: TileProps) {
+  const { setNodeRef, listeners, style, dimmed, justDropped } = useSortableTile(page.key, disabled || !sortable);
   const label = pageLabel(page);
+  const Tag = as;
 
   return (
-    <li
-      ref={(element) => {
+    <Tag
+      ref={(element: HTMLElement | null) => {
         setNodeRef(element);
         register(page.key, element);
       }}
@@ -433,7 +520,7 @@ function PageTile({ page, index, total, mode, preview, selectable, isSelected, i
           <Icon name="scissors" size={14} />
         </button>
       )}
-    </li>
+    </Tag>
   );
 }
 
@@ -456,15 +543,18 @@ interface ToolbarButtonProps {
   disabled?: boolean;
   iconOnly?: boolean;
   tone?: "danger";
+  /** Botón de alternancia (vista de pliego): expone aria-pressed. */
+  pressed?: boolean;
 }
 
-export function ToolbarButton({ icon, label, onClick, disabled = false, iconOnly = false, tone }: ToolbarButtonProps) {
+export function ToolbarButton({ icon, label, onClick, disabled = false, iconOnly = false, tone, pressed }: ToolbarButtonProps) {
   return (
     <button
       type="button"
       className={`toolbar-button${iconOnly ? " is-icon" : ""}${tone === "danger" ? " is-danger" : ""}`}
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={pressed}
       aria-label={iconOnly ? label : undefined}
       title={iconOnly ? label : undefined}
     >

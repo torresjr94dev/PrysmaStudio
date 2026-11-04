@@ -109,4 +109,8 @@ export type EngineEvent =
   | { type: "error"; id: string; code: EngineErrorCode; detail: string }
   | { type: "preview.info"; id: string; info: PreviewInfo }
   | { type: "preview.page"; id: string; thumbnail: PageThumbnail }
-  | { type: "preview.done"; id: string };
+  | { type: "preview.done"; id: string }
+  | EngineLoadEvent;
+
+/** Descarga del motor (WASM) dentro del worker. `total` es null cuando el servidor no informa el tamaño. */
+export type EngineLoadEvent = { type: "engine.loading"; loaded: number; total: number | null } | { type: "engine.ready" };

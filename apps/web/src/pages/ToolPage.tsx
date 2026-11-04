@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { toast } from "sonner";
 import { FileCard, SlotPicker } from "../components/FileCard.tsx";
 import { FileGrid, type FileIssue, type FileItem } from "../components/FileGrid.tsx";
+import { EngineLoader } from "../components/EngineLoader.tsx";
 import { DropOverlay, Dropzone, deliverFiles, useFilePicker, useWindowFileDrop } from "../components/FilePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { OptionsForm } from "../components/OptionsForm.tsx";
@@ -279,6 +280,7 @@ export function ToolPage({ tool, capabilities }: Props) {
   if (phase.kind === "done") {
     return (
       <ResultView
+        toolTitle={tool.title}
         results={phase.results}
         warnings={phase.warnings}
         metrics={phase.metrics}
@@ -319,9 +321,9 @@ export function ToolPage({ tool, capabilities }: Props) {
     return (
       <div className="tool-empty">
         <Breadcrumb title={tool.title} />
-        <span className="tool-icon is-large" data-category={tool.category}>
+        <motion.span className="tool-icon is-large" data-category={tool.category} layoutId={`tool-${tool.slug}`}>
           <Icon name={tool.icon} size={30} />
-        </span>
+        </motion.span>
         <h1>{tool.title}</h1>
         <p className="tool-empty-summary">{tool.summary}</p>
         {serverNotice}
@@ -342,6 +344,7 @@ export function ToolPage({ tool, capabilities }: Props) {
       <Breadcrumb title={tool.title} />
       <div className="tool-layout">
         <section className="workspace" aria-label="Archivos">
+          <EngineLoader />
           {workspace.kind === "files" && (
             <FileGrid
               items={items}
@@ -417,9 +420,9 @@ export function ToolPage({ tool, capabilities }: Props) {
 
         <aside className="sidebar" aria-label="Opciones">
           <div className="sidebar-head">
-            <span className="tool-icon" data-category={tool.category}>
+            <motion.span className="tool-icon" data-category={tool.category} layoutId={`tool-${tool.slug}`}>
               <Icon name={tool.icon} size={22} />
-            </span>
+            </motion.span>
             <div>
               <h1>{tool.title}</h1>
               <p>{tool.summary}</p>

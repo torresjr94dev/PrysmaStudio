@@ -1,7 +1,9 @@
+import { motion } from "motion/react";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { DropOverlay, useFilePicker, useWindowFileDrop } from "../components/FilePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { PrismStage } from "../components/PrismStage.tsx";
+import { IneArt, ToolArt } from "../components/ToolArt.tsx";
 import { ToolStatusChip } from "../components/ToolStatus.tsx";
 import { matchesAccept, pluralize } from "../lib/files.ts";
 import { handOffFiles } from "../lib/handoff.ts";
@@ -112,18 +114,21 @@ export function Home({ capabilities, onSearch }: Props) {
             </h2>
             <ul className="tool-grid" onPointerMove={trackSpotlight}>
               {items.map((tool) => (
-                <li key={tool.slug}>
-                  <a href={`/${tool.slug}`} className="tool-card" onClick={linkHandler(`/${tool.slug}`)}>
-                    <span className="tool-icon" data-category={tool.category}>
-                      <Icon name={tool.icon} size={22} />
+                <li key={tool.slug} className={tool.featured ? "is-featured" : undefined}>
+                  <a href={`/${tool.slug}`} className={`tool-card${tool.featured ? " is-featured" : ""}`} onClick={linkHandler(`/${tool.slug}`)}>
+                    <span className="tool-card-body">
+                      <motion.span className="tool-icon" data-category={tool.category} layoutId={`tool-${tool.slug}`}>
+                        <Icon name={tool.icon} size={22} />
+                      </motion.span>
+                      <span className="tool-title">{tool.title}</span>
+                      <span className="tool-summary">{tool.summary}</span>
+                      {tool.runtime === "server" && (
+                        <span className="tool-tag">
+                          <ToolStatusChip status={toolStatus(tool, capabilities)} />
+                        </span>
+                      )}
                     </span>
-                    <span className="tool-title">{tool.title}</span>
-                    <span className="tool-summary">{tool.summary}</span>
-                    {tool.runtime === "server" && (
-                      <span className="tool-tag">
-                        <ToolStatusChip status={toolStatus(tool, capabilities)} />
-                      </span>
-                    )}
+                    {tool.featured ? <IneArt /> : <ToolArt slug={tool.slug} />}
                   </a>
                 </li>
               ))}

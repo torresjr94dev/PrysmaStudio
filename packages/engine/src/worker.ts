@@ -4,12 +4,55 @@ import type { EngineEvent, EngineOp, EngineRequest, InputFile, PreviewOptions } 
 
 declare const self: DedicatedWorkerGlobalScope;
 
-const engine = import("./engine.ts");
-const errors = import("./errors.ts");
-
 function post(event: EngineEvent, transfer: Transferable[] = []): void {
   self.postMessage(event, transfer);
 }
+
+/**
+ * Progreso de descarga del motor. MuPDF carga su .wasm con el fetch global del worker, así que se
+ * envuelve la respuesta para contar bytes sin tocar la librería. La cabecera Content-Length solo sirve
+ * si el cuerpo no viene comprimido al vuelo (entonces mide bytes comprimidos y no cuadraría).
+ */
+function installLoadReporter(): void {
+  const nativeFetch = self.fetch.bind(self);
+  self.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const response = await nativeFetch(input, init);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!/\.wasm(\?|$)/.test(url) || !response.ok || !response.body) return response;
+    const declared = Number(response.headers.get("content-length"));
+    const total = response.headers.get("content-encoding") || !Number.isFinite(declared) || declared <= 0 ? null : declared;
+    let loaded = 0;
+    let reportedAt = 0;
+    post({ type: "engine.loading", loaded, total });
+    const counted = response.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          loaded += chunk.byteLength;
+          const now = performance.now();
+          if (now - reportedAt > 80) {
+            reportedAt = now;
+            post({ type: "engine.loading", loaded, total });
+          }
+          controller.enqueue(chunk);
+        },
+        flush() {
+          post({ type: "engine.loading", loaded, total: total ?? loaded });
+        },
+      }),
+    );
+    return new Response(counted, { status: response.status, statusText: response.statusText, headers: response.headers });
+  };
+}
+
+installLoadReporter();
+
+const engine = import("./engine.ts");
+const errors = import("./errors.ts");
+
+void engine.then(
+  () => post({ type: "engine.ready" }),
+  () => undefined,
+);
 
 const IMAGE_OPS = new Set<EngineOp["op"]>(["imagesToPdf", "ineSheet"]);
 

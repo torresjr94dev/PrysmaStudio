@@ -1,6 +1,7 @@
 import type {
   EngineErrorCode,
   EngineEvent,
+  EngineLoadEvent,
   EngineOp,
   EngineRequest,
   EngineResult,
@@ -59,9 +60,16 @@ export class EngineClient {
   #worker: Worker | null = null;
   #current: Task | null = null;
   readonly #queue: Task[] = [];
+  readonly #loadListeners = new Set<(event: EngineLoadEvent) => void>();
 
   constructor(createWorker: () => Worker) {
     this.#createWorker = createWorker;
+  }
+
+  /** Avisos de descarga del motor (la primera vez pesa ~10 MB). Devuelve la función para desuscribirse. */
+  onLoad(listener: (event: EngineLoadEvent) => void): () => void {
+    this.#loadListeners.add(listener);
+    return () => this.#loadListeners.delete(listener);
   }
 
   run(op: EngineOp, options: RunOptions = {}): Promise<EngineResult> {
@@ -167,9 +175,14 @@ export class EngineClient {
     if (this.#worker) return this.#worker;
     const worker = this.#createWorker();
     worker.addEventListener("message", (event: MessageEvent<EngineEvent>) => {
+      const data = event.data;
+      if (data.type === "engine.loading" || data.type === "engine.ready") {
+        for (const listener of this.#loadListeners) listener(data);
+        return;
+      }
       const task = this.#current;
-      if (!task || event.data.id !== task.request.id) return;
-      if (task.onEvent(event.data)) {
+      if (!task || data.id !== task.request.id) return;
+      if (task.onEvent(data)) {
         this.#current = null;
         this.#next();
       }

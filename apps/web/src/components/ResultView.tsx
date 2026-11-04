@@ -1,6 +1,7 @@
 import type { EngineMetrics } from "@prysmastudio/engine";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { downloadBlob, formatBytes, pluralize } from "../lib/files.ts";
 import { zipFiles } from "../lib/zip.ts";
 import { Icon } from "./Icon.tsx";
@@ -11,6 +12,7 @@ export interface Result {
 }
 
 interface Props {
+  toolTitle: string;
   results: Result[];
   warnings: string[];
   metrics: EngineMetrics | null;
@@ -22,9 +24,7 @@ interface Props {
 }
 
 function Savings({ metrics }: { metrics: EngineMetrics }) {
-  if (metrics.outputBytes >= metrics.inputBytes || metrics.inputBytes === 0) {
-    return <p className="result-metrics">Listo en {(metrics.durationMs / 1000).toFixed(1)} s.</p>;
-  }
+  if (metrics.outputBytes >= metrics.inputBytes || metrics.inputBytes === 0) return null;
   const ratio = metrics.outputBytes / metrics.inputBytes;
   return (
     <div className="savings" aria-label={`De ${formatBytes(metrics.inputBytes)} a ${formatBytes(metrics.outputBytes)}`}>
@@ -53,18 +53,91 @@ function Savings({ metrics }: { metrics: EngineMetrics }) {
   );
 }
 
+function hex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** SHA-256 del archivo generado, calculado en el navegador. Sirve como comprobante de integridad. */
+function useDigest(blob: Blob): string | null | undefined {
+  const [digest, setDigest] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    setDigest(undefined);
+    blob
+      .arrayBuffer()
+      .then((bytes) => crypto.subtle.digest("SHA-256", bytes))
+      .then((result) => {
+        if (!cancelled) setDigest(hex(result));
+      })
+      .catch(() => {
+        if (!cancelled) setDigest(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [blob]);
+  return digest;
+}
+
+function copyText(text: string, done: string): void {
+  navigator.clipboard
+    .writeText(text)
+    .then(() => toast.success(done))
+    .catch(() => toast.error("No se pudo copiar. Selecciónalo y cópialo a mano."));
+}
+
+function ResultRow({ result, onSave }: { result: Result; onSave: () => void }) {
+  const digest = useDigest(result.blob);
+  return (
+    <li>
+      <div className="result-row">
+        <Icon name="file" />
+        <span className="result-name" title={result.name}>
+          {result.name}
+        </span>
+        <span className="result-size">{formatBytes(result.blob.size)}</span>
+        <button type="button" className="button is-ghost is-small" onClick={onSave}>
+          <Icon name="download" size={16} />
+          Descargar
+        </button>
+      </div>
+      <div className="result-hash">
+        <span className="result-hash-label">
+          <Icon name="hash" size={12} />
+          SHA-256
+        </span>
+        {digest === undefined ? (
+          <span className="result-hash-value is-pending">calculando…</span>
+        ) : digest === null ? (
+          <span className="result-hash-value is-pending">no disponible</span>
+        ) : (
+          <>
+            <code className="result-hash-value">{digest}</code>
+            <button type="button" className="icon-button" aria-label="Copiar SHA-256" title="Copiar SHA-256" onClick={() => copyText(digest, "SHA-256 copiado.")}>
+              <Icon name="copy" size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
 /**
- * Pantalla de éxito. Comparte `layoutId` con la tarjeta de progreso del panel: al terminar, esa tarjeta
- * se expande y se convierte en esta lista de descarga en lugar de aparecer de la nada.
+ * Pantalla de éxito en forma de comprobante: herramienta, fecha, peso antes y después, tiempo y el
+ * SHA-256 de cada archivo. Comparte `layoutId` con la tarjeta de progreso del panel: al terminar, esa
+ * tarjeta se expande y se convierte en esta.
  */
-export function ResultView({ results, warnings, metrics, zipName, onDownload, onEdit, onRestart }: Props) {
+export function ResultView({ toolTitle, results, warnings, metrics, zipName, onDownload, onEdit, onRestart }: Props) {
   const save = (blob: Blob, name: string) => {
     downloadBlob(blob, name);
     onDownload();
   };
   const [zipping, setZipping] = useState(false);
   const [zipError, setZipError] = useState<string | null>(null);
+  const [issuedAt] = useState(() => new Date());
   const [only] = results;
+  const totalBytes = results.reduce((sum, result) => sum + result.blob.size, 0);
 
   const downloadAll = async () => {
     setZipping(true);
@@ -77,6 +150,18 @@ export function ResultView({ results, warnings, metrics, zipName, onDownload, on
       setZipping(false);
     }
   };
+
+  const rows: Array<[string, string]> = [
+    ["Herramienta", toolTitle],
+    ["Generado", issuedAt.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })],
+    ["Archivos", `${pluralize(results.length, "archivo", "archivos")} · ${formatBytes(totalBytes)}`],
+  ];
+  if (metrics) {
+    rows.push(["Entrada", formatBytes(metrics.inputBytes)]);
+    rows.push(["Tiempo", `${(metrics.durationMs / 1000).toFixed(1)} s en tu equipo`]);
+  } else {
+    rows.push(["Procesado", "en tu servidor PrysmaStudio"]);
+  }
 
   return (
     <motion.section
@@ -120,21 +205,29 @@ export function ResultView({ results, warnings, metrics, zipName, onDownload, on
       </div>
       {zipError && <p className="notice is-error">{zipError}</p>}
 
-      <ul className="result-list">
-        {results.map((result) => (
-          <li key={result.name}>
-            <Icon name="file" />
-            <span className="result-name" title={result.name}>
-              {result.name}
-            </span>
-            <span className="result-size">{formatBytes(result.blob.size)}</span>
-            <button type="button" className="button is-ghost is-small" onClick={() => save(result.blob, result.name)}>
-              <Icon name="download" size={16} />
-              Descargar
-            </button>
-          </li>
-        ))}
-      </ul>
+      <section className="receipt" aria-label="Comprobante">
+        <header className="receipt-head">
+          <span className="receipt-brand">
+            <img src="/icon.svg" alt="" width={16} height={16} draggable={false} />
+            PrysmaStudio
+          </span>
+          <span>Comprobante</span>
+        </header>
+        <dl className="receipt-rows">
+          {rows.map(([label, value]) => (
+            <div key={label} className="receipt-row">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <ul className="result-list">
+          {results.map((result) => (
+            <ResultRow key={result.name} result={result} onSave={() => save(result.blob, result.name)} />
+          ))}
+        </ul>
+        <p className="receipt-note">El SHA-256 identifica exactamente este archivo: si alguien lo altera, cambia. Guárdalo con tu trámite.</p>
+      </section>
 
       <div className="result-footer">
         <button type="button" className="button is-ghost" onClick={onEdit}>
