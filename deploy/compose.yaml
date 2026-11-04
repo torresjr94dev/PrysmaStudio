@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   gotenberg:
-    image: gotenberg/gotenberg:8.38.1-libreoffice
+    image: gotenberg/gotenberg:8.39.0-libreoffice
     command:
       - gotenberg
       - --api-timeout=120s
