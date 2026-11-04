@@ -10,10 +10,12 @@ services:
     environment:
       PRYSMA_DOMAIN: ${PRYSMA_DOMAIN:?Define PRYSMA_DOMAIN (p. ej. pdf.tudominio.mx)}
       PRYSMA_MAX_UPLOAD_MB: ${PRYSMA_MAX_UPLOAD_MB:-100}
+      PRYSMA_SITE_SCHEME: ${PRYSMA_SITE_SCHEME:-}
+      PRYSMA_TRUSTED_PROXIES: ${PRYSMA_TRUSTED_PROXIES:-127.0.0.1/32}
     ports:
-      - "${PRYSMA_HTTP_PORT:-80}:80"
-      - "${PRYSMA_HTTPS_PORT:-443}:443"
-      - "${PRYSMA_HTTPS_PORT:-443}:443/udp"
+      - "${PRYSMA_BIND_ADDR:-0.0.0.0}:${PRYSMA_HTTP_PORT:-80}:80"
+      - "${PRYSMA_BIND_ADDR:-0.0.0.0}:${PRYSMA_HTTPS_PORT:-443}:443"
+      - "${PRYSMA_BIND_ADDR:-0.0.0.0}:${PRYSMA_HTTPS_PORT:-443}:443/udp"
     volumes:
       - caddy_data:/data
       - caddy_config:/config

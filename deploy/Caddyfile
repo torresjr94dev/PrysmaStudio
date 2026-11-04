@@ -1,8 +1,15 @@
 {
 	admin off
+	servers {
+		# Detrás de otro proxy (PRYSMA_TRUSTED_PROXIES=private_ranges) se confía en su X-Forwarded-For;
+		# strict toma la IP más a la derecha que no sea de confianza, así el cliente no puede falsearla.
+		trusted_proxies static {$PRYSMA_TRUSTED_PROXIES:127.0.0.1/32}
+		trusted_proxies_strict
+	}
 }
 
-{$PRYSMA_DOMAIN} {
+# PRYSMA_SITE_SCHEME=http:// cuando otro proxy termina el TLS; vacío, Caddy emite el certificado.
+{$PRYSMA_SITE_SCHEME}{$PRYSMA_DOMAIN} {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		# La promesa "tu archivo no sale de tu equipo" se puede auditar aquí: connect-src solo permite este origen.
@@ -21,6 +28,8 @@
 			max_size {$PRYSMA_MAX_UPLOAD_MB:100}MB
 		}
 		reverse_proxy server:8080 {
+			# El servidor usa la última IP de X-Forwarded-For: que sea la del cliente real, no la del proxy.
+			header_up X-Forwarded-For {client_ip}
 			# SSE: reenviar cada evento al instante, sin buffer.
 			flush_interval -1
 		}

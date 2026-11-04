@@ -1,0 +1,31 @@
+# Vhost para publicar PrysmaStudio desde un nginx que ya ocupa 80/443 en el VPS.
+# En deploy/.env: PRYSMA_SITE_SCHEME=http://, PRYSMA_TRUSTED_PROXIES=private_ranges,
+# PRYSMA_BIND_ADDR=127.0.0.1 y PRYSMA_HTTP_PORT=8090 (el puerto de proxy_pass).
+#
+#   sudo cp nginx.conf.example /etc/nginx/sites-available/prysmastudio.conf   # ajusta server_name
+#   sudo ln -s /etc/nginx/sites-available/prysmastudio.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d prysmastudio.codergenius.com.mx     # agrega el bloque 443 y la redirección
+#
+server {
+    listen 80;
+    listen [::]:80;
+    server_name prysmastudio.codergenius.com.mx;
+
+    # Caddy aplica el límite real (PRYSMA_MAX_UPLOAD_MB); aquí solo un margen por el multipart.
+    client_max_body_size 110m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # Reemplaza (no anexa) para que el cliente no pueda inyectar IPs falsas.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # SSE de progreso y subidas grandes: sin búfer en ningún sentido.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+}

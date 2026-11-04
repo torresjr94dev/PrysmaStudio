@@ -120,9 +120,17 @@ docker compose up -d --build
 | `PRYSMA_WORK_TMPFS` | `2g` | Memoria para archivos en proceso |
 | `PRYSMA_SERVER_MEMORY` / `PRYSMA_GOTENBERG_MEMORY` | `4g` / `2g` | Límites de memoria de los contenedores |
 | `PRYSMA_HTTP_PORT` / `PRYSMA_HTTPS_PORT` | `80` / `443` | Puertos publicados |
+| `PRYSMA_BIND_ADDR` | `0.0.0.0` | Interfaz donde se publican los puertos |
+| `PRYSMA_SITE_SCHEME` | vacío | `http://` si otro proxy termina el TLS |
+| `PRYSMA_TRUSTED_PROXIES` | `127.0.0.1/32` | Rangos cuyo `X-Forwarded-For` acepta Caddy |
 
 El servidor también acepta `PRYSMA_MAX_PENDING_JOBS` (20) y `PRYSMA_JOB_TIMEOUT_SECONDS` (600), pero
 `compose.yaml` no los expone: si los necesitas, agrégalos al servicio `server`.
+
+### Detrás de un nginx existente
+
+Si el VPS ya tiene nginx en 80/443, Caddy puede servir HTTP plano en un puerto local y nginx termina
+el TLS. Descomenta el bloque correspondiente de `.env.example` y sigue `deploy/nginx.conf.example`.
 
 ### Instancia privada
 
