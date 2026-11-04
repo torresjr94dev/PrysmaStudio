@@ -21,6 +21,6 @@ RUN pnpm --filter @prysmastudio/web build
 RUN find apps/web/dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.wasm' -o -name '*.svg' -o -name '*.webmanifest' \) \
       -exec brotli --keep --best {} \; -exec gzip --keep --best {} \;
 
-FROM caddy:2.11.6
+FROM caddy:2.11.7
 COPY --from=build /src/apps/web/dist /srv
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
