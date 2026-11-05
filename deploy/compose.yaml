@@ -7,6 +7,8 @@ services:
       dockerfile: deploy/web.Dockerfile
       args:
         VITE_SOURCE_URL: ${PRYSMA_SOURCE_URL:?Define PRYSMA_SOURCE_URL con la URL pública del repositorio (AGPL)}
+        # Para que la imagen de vista previa (og:image) salga con URL absoluta al compartir el enlace.
+        VITE_SITE_URL: https://${PRYSMA_DOMAIN:?Define PRYSMA_DOMAIN (p. ej. pdf.tudominio.mx)}
     environment:
       PRYSMA_DOMAIN: ${PRYSMA_DOMAIN:?Define PRYSMA_DOMAIN (p. ej. pdf.tudominio.mx)}
       PRYSMA_MAX_UPLOAD_MB: ${PRYSMA_MAX_UPLOAD_MB:-100}

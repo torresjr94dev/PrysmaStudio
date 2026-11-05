@@ -29,7 +29,7 @@ function NotFound() {
 function Brand() {
   return (
     <a href="/" className="brand" onClick={linkHandler("/")}>
-      <img src="/icon.svg" alt="" width={24} height={24} draggable={false} />
+      <img src="/icon.svg" alt="" width={28} height={28} draggable={false} />
       PrysmaStudio
     </a>
   );

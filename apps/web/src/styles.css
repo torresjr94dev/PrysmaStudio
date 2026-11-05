@@ -54,10 +54,6 @@
   --icon-glow: 45%;
   /* Espectro: el documento entra al prisma y sale en los cinco tonos de las categorías */
   --spectrum: linear-gradient(90deg, var(--cat-tramites), var(--cat-optimizar), var(--cat-organizar), var(--cat-convertir), var(--cat-seguridad));
-  --prism-fill: rgb(255 255 255 / 0.06);
-  --prism-stroke: rgb(255 255 255 / 0.38);
-  --prism-highlight: rgb(255 255 255 / 0.55);
-  --stage-shadow: rgb(0 0 0 / 0.55);
   /* Jerarquía monocroma: el color del texto pesa más que la negrita.
      Subdued original (#61646e) da 3.4:1 sobre el lienzo: se sube a #767a85 (4.6:1) para texto de apoyo. */
   --color-text: #f4f5f7;
@@ -184,10 +180,6 @@
     --fill-strong: rgb(20 21 26 / 0.09);
     --spotlight-rim: rgb(20 21 26 / 0.2);
     --icon-glow: 0%;
-    --prism-fill: rgb(20 21 26 / 0.04);
-    --prism-stroke: rgb(20 21 26 / 0.28);
-    --prism-highlight: rgb(255 255 255 / 0.95);
-    --stage-shadow: rgb(20 21 26 / 0.2);
     --color-text: #1a1c1c;
     --color-text-muted: #47464b;
     --color-text-subtle: #77767b;
@@ -1075,23 +1067,77 @@ kbd {
   opacity: 0.7;
 }
 
-/* --- Escena del prisma --------------------------------------------------------------------- */
+/* --- Escena del prisma: el logo sobre un escenario de vidrio oscuro (en ambos temas) ------------ */
 
 .prism-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
   width: 100%;
-  max-width: 560px;
+  max-width: 600px;
+  padding: var(--space-5) var(--space-4) var(--space-4);
   justify-self: end;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(70% 60% at 58% 44%, rgb(58 92 230 / 0.22), transparent 70%),
+    radial-gradient(45% 45% at 88% 38%, rgb(122 77 255 / 0.18), transparent 70%),
+    #090a10;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    var(--shadow-lg);
+  transition: box-shadow var(--duration-slow) var(--ease);
 }
 
-.prism-svg {
+.prism-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(60% 50% at 50% 50%, rgb(255 255 255 / 0.05), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease);
+}
+
+.prism-stage.is-over::after {
+  opacity: 1;
+}
+
+.prism-scene {
+  position: relative;
+  width: 108%;
+  margin-inline: -4%;
+  aspect-ratio: 1400 / 493;
+}
+
+.prism-logo,
+.prism-overlay {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+}
+
+.prism-logo {
+  object-fit: contain;
+  filter: saturate(1.05);
+  transition: filter var(--duration-slow) var(--ease);
+}
+
+.prism-stage.is-over .prism-logo {
+  filter: saturate(1.25) brightness(1.08);
+}
+
+.prism-overlay {
   overflow: visible;
 }
 
 .prism-sheet {
-  filter: drop-shadow(0 16px 28px var(--stage-shadow));
+  filter: drop-shadow(0 16px 28px rgb(0 0 0 / 0.55));
   transform-box: fill-box;
   transform-origin: center;
   animation: sheet-float 7s ease-in-out infinite;
@@ -1100,11 +1146,11 @@ kbd {
 
 .prism-stage.is-over .prism-sheet {
   animation: none;
-  transform: translateX(44px) scale(0.94);
+  transform: translate(150px, 30px) scale(0.86);
 }
 
 .prism-paper {
-  fill: var(--color-sheet);
+  fill: #ffffff;
 }
 
 .prism-ink {
@@ -1115,65 +1161,54 @@ kbd {
   fill: rgb(0 0 0 / 0.3);
 }
 
-.prism-beam {
-  stroke: var(--prism-stroke);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-dasharray: 3 9;
-  animation: beam-flow 1.2s linear infinite;
-}
-
-.prism-body {
-  fill: var(--prism-fill);
-  stroke: var(--prism-stroke);
-  stroke-width: 1.5;
-}
-
-.prism-highlight {
-  stroke: var(--prism-highlight);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-}
-
-.prism-ray {
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ray-in 0.9s var(--ease-deliberate) forwards;
-  transition: stroke-width var(--duration) var(--ease);
-}
-
-.prism-stage.is-over .prism-ray {
-  stroke-width: 3;
-}
-
-.ray-gradient[data-category="tramites"] {
-  color: var(--cat-tramites);
-}
-
-.ray-gradient[data-category="organizar"] {
-  color: var(--cat-organizar);
-}
-
-.ray-gradient[data-category="optimizar"] {
-  color: var(--cat-optimizar);
-}
-
-.ray-gradient[data-category="convertir"] {
-  color: var(--cat-convertir);
-}
-
-.ray-gradient[data-category="seguridad"] {
-  color: var(--cat-seguridad);
-}
-
-.prism-label {
+/* Leyenda: las cinco categorías como el espectro que sale del prisma. */
+.prism-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  fill: var(--color-text-subtle);
+  color: rgb(244 245 247 / 0.62);
+}
+
+.prism-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.prism-legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ray, #fff);
+  box-shadow: 0 0 10px var(--ray, #fff);
+}
+
+.prism-legend li[data-category="tramites"] {
+  --ray: #e14ef5;
+}
+
+.prism-legend li[data-category="organizar"] {
+  --ray: #7a4dff;
+}
+
+.prism-legend li[data-category="optimizar"] {
+  --ray: #2b86ff;
+}
+
+.prism-legend li[data-category="convertir"] {
+  --ray: #19e3ff;
+}
+
+.prism-legend li[data-category="seguridad"] {
+  --ray: #5df0a8;
 }
 
 /* display-lg: 56 / 64, peso ligero, tracking -0.035em. Jerarquía por color, no por negrita. */
@@ -3132,6 +3167,7 @@ kbd {
 }
 
 .slot-body {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -3776,13 +3812,20 @@ kbd {
 }
 
 .engine-mark-body {
-  fill: var(--prism-fill);
-  stroke: var(--prism-stroke);
-  stroke-width: 1.5;
+  fill: rgb(61 91 224 / 0.22);
+  stroke: var(--color-text);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.engine-mark-edge {
+  stroke: var(--color-text);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
 }
 
 .engine-mark-beam {
-  stroke: var(--prism-stroke);
+  stroke: var(--color-text);
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-dasharray: 2 4;
@@ -4047,12 +4090,6 @@ kbd {
   40%,
   100% {
     transform: translateX(130%);
-  }
-}
-
-@keyframes ray-in {
-  to {
-    stroke-dashoffset: 0;
   }
 }
 
@@ -4391,4 +4428,126 @@ kbd {
 
 .redact-more {
   padding: var(--space-2);
+}
+
+/* --- e.firma: ranura ancha para el documento, archivos sin vista previa y panel del titular -------- */
+
+.slot.is-wide {
+  grid-column: 1 / -1;
+}
+
+.slot.is-wide .slot-body {
+  aspect-ratio: 16 / 5;
+}
+
+.slot-document {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3);
+}
+
+.slot-document .thumb-sheet.is-document {
+  width: auto;
+  aspect-ratio: 8.5 / 11;
+}
+
+.credentials-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+}
+
+.credentials-title {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.credentials-name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.credential-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-label);
+}
+
+.credential-row {
+  display: contents;
+}
+
+.credential-row dt {
+  color: var(--color-text-subtle);
+}
+
+.credential-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.credentials-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.credentials-status.is-ok {
+  color: var(--color-success);
+}
+
+.credentials-panel .notice {
+  margin-top: var(--space-1);
+}
+
+/* Firmar: la rúbrica se traza sobre la hoja al pasar el cursor. */
+.art-sign {
+  position: absolute;
+  top: calc(50% + 2px);
+  left: calc(50% - 20px);
+  width: 40px;
+  height: 17px;
+  overflow: visible;
+  stroke: var(--color-text);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.art-sign path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.9s var(--ease-deliberate);
+}
+
+[data-art="firmar-efirma"] .a {
+  transform: rotate(-4deg);
+}
+
+.tool-card:hover [data-art="firmar-efirma"] .a {
+  transform: rotate(0deg);
+}
+
+.tool-card:hover [data-art="firmar-efirma"] .art-sign path {
+  stroke-dashoffset: 0;
 }

@@ -8,8 +8,18 @@ export default defineConfig(({ mode }) => {
     throw new Error("VITE_SOURCE_URL (https://…) es obligatorio en producción: la AGPL exige enlazar el código fuente.");
   }
 
+  // og:image debe ser absoluta. VITE_SITE_URL (https://tu-dominio) la fija en producción; sin ella queda relativa.
+  const site = (env.VITE_SITE_URL ?? "").replace(/\/+$/, "");
+  const ogImage = `${site}/og.png`;
+
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: "prysma-html-env",
+        transformIndexHtml: (html) => html.replaceAll("%VITE_OG_IMAGE%", ogImage),
+      },
+    ],
     // El worker usa import() diferido para cargar MuPDF: requiere formato ES.
     worker: { format: "es" },
     // MuPDF localiza su .wasm con import.meta.url: pre-empaquetarlo rompería la ruta en desarrollo.

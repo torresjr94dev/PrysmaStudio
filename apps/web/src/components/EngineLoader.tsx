@@ -17,11 +17,15 @@ export function EngineLoader() {
     <div className="engine-loader" role="status" aria-live="polite">
       <span className="engine-mark" aria-hidden="true">
         <svg viewBox="0 0 48 48" fill="none">
-          <rect x="11" y="11" width="26" height="26" rx="8" transform="rotate(45 24 24)" className="engine-mark-body" />
-          <line x1="2" y1="24" x2="10" y2="24" className="engine-mark-beam" />
-          <line x1="38" y1="24" x2="47" y2="15" className="engine-mark-ray" style={{ animationDelay: "0s" }} />
-          <line x1="38" y1="24" x2="47" y2="24" className="engine-mark-ray" style={{ animationDelay: "0.15s" }} />
-          <line x1="38" y1="24" x2="47" y2="33" className="engine-mark-ray" style={{ animationDelay: "0.3s" }} />
+          {/* El isotipo: prisma, haz que entra y espectro que se enciende rayo a rayo. */}
+          <line x1="1" y1="22" x2="14" y2="25.5" className="engine-mark-beam" />
+          <polygon points="24,7 44,40 4,40" className="engine-mark-body" />
+          <path d="M24 7v24" className="engine-mark-edge" />
+          <line x1="34" y1="25" x2="47" y2="14" className="engine-mark-ray" style={{ stroke: "#e14ef5", animationDelay: "0s" }} />
+          <line x1="34" y1="25" x2="47" y2="19.5" className="engine-mark-ray" style={{ stroke: "#7a4dff", animationDelay: "0.12s" }} />
+          <line x1="34" y1="25" x2="47" y2="25" className="engine-mark-ray" style={{ stroke: "#2b86ff", animationDelay: "0.24s" }} />
+          <line x1="34" y1="25" x2="47" y2="30.5" className="engine-mark-ray" style={{ stroke: "#19e3ff", animationDelay: "0.36s" }} />
+          <line x1="34" y1="25" x2="47" y2="36" className="engine-mark-ray" style={{ stroke: "#5df0a8", animationDelay: "0.48s" }} />
         </svg>
       </span>
       <div className="engine-text">
