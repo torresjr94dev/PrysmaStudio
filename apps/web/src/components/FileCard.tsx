@@ -4,7 +4,7 @@ import type { DocumentPreview } from "../lib/preview.ts";
 import { useObjectUrl } from "../lib/preview.ts";
 import { isFileDrag } from "../lib/sortable.ts";
 import { deliverFiles, useFilePicker } from "./FilePicker.tsx";
-import { Icon } from "./Icon.tsx";
+import { Icon, type IconName } from "./Icon.tsx";
 import { Thumb } from "./Thumb.tsx";
 
 interface CardProps {
@@ -61,16 +61,29 @@ interface SlotProps {
   label: string;
   hint: string;
   accept: string;
+  icon: IconName;
   file: File | null;
+  /** Vista previa del PDF cuando la ranura es el documento principal. */
+  preview?: DocumentPreview | undefined;
+  wide?: boolean;
   onChange: (file: File | null) => void;
   onRejected: (count: number) => void;
   disabled: boolean;
 }
 
-/** Ranura con rol fijo (frente / reverso): acepta clic o arrastre y muestra la foto. */
-export function SlotPicker({ label, hint, accept, file, onChange, onRejected, disabled }: SlotProps) {
+/** Qué se ofrece elegir, según el accept: «imagen», «PDF» o «archivo». */
+function nounOf(accept: string): string {
+  if (accept.includes("image/")) return "imagen";
+  if (accept === "application/pdf,.pdf") return "PDF";
+  return "archivo";
+}
+
+/** Ranura con rol fijo (frente / reverso; PDF, .cer, .key): acepta clic o arrastre y muestra el archivo. */
+export function SlotPicker({ label, hint, accept, icon, file, preview, wide = false, onChange, onRejected, disabled }: SlotProps) {
   const [over, setOver] = useState(false);
-  const url = useObjectUrl(file);
+  const image = file && file.type.startsWith("image/") ? file : null;
+  const url = useObjectUrl(image);
+  const noun = nounOf(accept);
   const options = { accept, multiple: false, onFiles: (files: File[]) => onChange(files[0] ?? null), onRejected };
   const picker = useFilePicker(options);
 
@@ -84,7 +97,7 @@ export function SlotPicker({ label, hint, accept, file, onChange, onRejected, di
 
   return (
     <div
-      className={`slot${over ? " is-over" : ""}${file ? " is-filled" : ""}`}
+      className={`slot${over ? " is-over" : ""}${file ? " is-filled" : ""}${wide ? " is-wide" : ""}`}
       onDragOver={(event) => {
         if (!isFileDrag(event)) return;
         event.preventDefault();
@@ -107,11 +120,25 @@ export function SlotPicker({ label, hint, accept, file, onChange, onRejected, di
       <button type="button" className="slot-body" onClick={picker.open} disabled={disabled} aria-label={file ? `Cambiar ${label.toLowerCase()}` : `Elegir ${label.toLowerCase()}`}>
         {url ? (
           <img src={url} alt={`${label} de la credencial`} draggable={false} />
+        ) : file && preview && isPdf(file) ? (
+          <Thumb
+            size={preview.pages[0]}
+            src={preview.thumbnails[0]}
+            state={preview.status === "encrypted" ? "locked" : preview.status === "error" ? "missing" : preview.thumbnails[0] ? "ready" : "loading"}
+            fallback="PDF"
+          />
+        ) : file ? (
+          <span className="slot-document">
+            <span className="thumb-sheet is-document">
+              <Icon name={icon} size={32} />
+              <span className="doc-extension">{extensionOf(file.name)}</span>
+            </span>
+          </span>
         ) : (
           <span className="slot-empty">
-            <Icon name="idCard" size={36} />
+            <Icon name={icon} size={36} />
             <span>{hint}</span>
-            <span className="slot-cta">Elegir o arrastrar imagen</span>
+            <span className="slot-cta">Elegir o arrastrar {noun}</span>
           </span>
         )}
       </button>

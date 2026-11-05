@@ -4,6 +4,7 @@ import { compress } from "./ops/compress.ts";
 import { imagesToPdf, ineSheet } from "./ops/images.ts";
 import { redact, scan } from "./ops/redact.ts";
 import { protect, unlock } from "./ops/security.ts";
+import { sign } from "./ops/sign.ts";
 import { arrange, merge, organize, rotate, split } from "./ops/structure.ts";
 import { preview, type PreviewSink } from "./ops/preview.ts";
 import type { Report } from "./ops/types.ts";
@@ -18,12 +19,17 @@ function inputsOf(op: EngineOp): InputFile[] {
       return op.inputs;
     case "ineSheet":
       return [op.front, op.back];
+    case "sign":
+      return [op.input, op.certificate, op.privateKey];
     default:
       return [op.input];
   }
 }
 
-function execute(op: EngineOp, report: Report, warnings: string[]): OutputFile[] {
+/** Todas las operaciones de MuPDF son síncronas; solo la firma espera a WebCrypto. */
+export type SyncOp = Exclude<EngineOp, { op: "sign" }>;
+
+function execute(op: SyncOp, report: Report, warnings: string[]): OutputFile[] {
   switch (op.op) {
     case "merge":
       return merge(op.inputs, report);
@@ -65,24 +71,30 @@ function summarizeMupdfWarnings(raw: string[]): string[] {
   return summary;
 }
 
-export function runOp(op: EngineOp, report: Report): EngineResult {
+export function runOp(op: SyncOp, report: Report): EngineResult;
+export function runOp(op: EngineOp, report: Report): EngineResult | Promise<EngineResult>;
+export function runOp(op: EngineOp, report: Report): EngineResult | Promise<EngineResult> {
   const started = performance.now();
   const inputBytes = inputsOf(op).reduce((sum, file) => sum + file.bytes.byteLength, 0);
   const warnings: string[] = [];
 
   resetMupdfWarnings();
-  const outputs = execute(op, report, warnings);
-  warnings.push(...summarizeMupdfWarnings(takeMupdfWarnings()));
-
-  return {
-    outputs,
-    warnings,
-    metrics: {
-      inputBytes,
-      outputBytes: outputs.reduce((sum, file) => sum + file.bytes.byteLength, 0),
-      durationMs: Math.round(performance.now() - started),
-    },
+  const finish = (outputs: OutputFile[]): EngineResult => {
+    warnings.push(...summarizeMupdfWarnings(takeMupdfWarnings()));
+    return {
+      outputs,
+      warnings,
+      metrics: {
+        inputBytes,
+        outputBytes: outputs.reduce((sum, file) => sum + file.bytes.byteLength, 0),
+        durationMs: Math.round(performance.now() - started),
+      },
+    };
   };
+  if (op.op === "sign") {
+    return sign(op.input, { certificate: op.certificate, privateKey: op.privateKey, password: op.password }, { reason: op.reason, stamp: op.stamp }, report).then(finish);
+  }
+  return finish(execute(op, report, warnings));
 }
 
 export function runScan(input: InputFile, options: RedactOptions): RedactScan {

@@ -108,7 +108,7 @@ async function reportFailure(id: string, error: unknown): Promise<void> {
 async function handleRun(id: string, op: EngineOp): Promise<void> {
   const [{ runOp }, prepared] = await Promise.all([engine, prepare(op)]);
   let lastProgressAt = 0;
-  const result = runOp(prepared, (progress, stage) => {
+  const result = await runOp(prepared, (progress, stage) => {
     const now = performance.now();
     if (now - lastProgressAt < 100 && progress < 1) return;
     lastProgressAt = now;

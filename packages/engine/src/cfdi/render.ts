@@ -54,7 +54,7 @@ function winAnsiByte(codePoint: number): number | null {
 }
 
 /** Sustituye lo que WinAnsi no puede representar: quita diacríticos raros y deja «?» en lo demás. */
-function sanitize(text: string): string {
+export function sanitize(text: string): string {
   let out = "";
   for (const char of text) {
     const code = char.codePointAt(0) ?? 0x3f;
@@ -73,7 +73,7 @@ function sanitize(text: string): string {
 }
 
 /** Literal de cadena PDF en ASCII puro: los bytes altos van en octal para no depender de la codificación. */
-function pdfString(sanitized: string): string {
+export function pdfString(sanitized: string): string {
   let out = "(";
   for (const char of sanitized) {
     const byte = winAnsiByte(char.codePointAt(0) ?? 0x3f) ?? 0x3f;

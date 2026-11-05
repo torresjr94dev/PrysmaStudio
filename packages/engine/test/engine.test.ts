@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runOp, runPreview } from "../src/engine.ts";
+import { runOp, runPreview, type SyncOp } from "../src/engine.ts";
 import { EngineError } from "../src/errors.ts";
 import type { EngineErrorCode, EngineOp, InputFile, PageThumbnail, PreviewInfo } from "../src/protocol.ts";
 import { parsePageRanges } from "../src/ranges.ts";
@@ -14,7 +14,7 @@ import {
   textPdf,
 } from "./fixtures.ts";
 
-function run(op: EngineOp) {
+function run(op: SyncOp) {
   return runOp(op, noProgress);
 }
 
@@ -29,7 +29,7 @@ function expectCode(fn: () => unknown, code: EngineErrorCode): void {
   throw new Error(`Se esperaba un EngineError con código ${code}`);
 }
 
-function onlyOutput(op: EngineOp): ArrayBuffer {
+function onlyOutput(op: SyncOp): ArrayBuffer {
   const { outputs } = run(op);
   expect(outputs).toHaveLength(1);
   const [first] = outputs;

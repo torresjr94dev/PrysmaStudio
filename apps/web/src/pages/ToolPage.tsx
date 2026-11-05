@@ -2,6 +2,7 @@ import { EngineFailure, type EngineMetrics, type InputFile, type RedactArea, typ
 import { motion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CredentialsPanel, useCredentials } from "../components/CredentialsPanel.tsx";
 import { FileCard, SlotPicker } from "../components/FileCard.tsx";
 import { FileGrid, type FileIssue, type FileItem } from "../components/FileGrid.tsx";
 import { EngineLoader } from "../components/EngineLoader.tsx";
@@ -13,12 +14,12 @@ import { Progress } from "../components/Progress.tsx";
 import { RedactPanel, matchLabel, type ScanState } from "../components/RedactPanel.tsx";
 import { ResultView, type Result } from "../components/ResultView.tsx";
 import { engine } from "../lib/engine.ts";
-import { clientByteBudget, formatBytes, newKey, pluralize, toInput } from "../lib/files.ts";
+import { clientByteBudget, formatBytes, matchesAccept, newKey, pluralize, toInput } from "../lib/files.ts";
 import { takeHandedOffFiles } from "../lib/handoff.ts";
 import { useDocumentPreview } from "../lib/preview.ts";
 import { linkHandler, useDocumentTitle } from "../lib/router.ts";
 import { ServerFailure, runServerJob, type Capabilities } from "../lib/server.ts";
-import { acceptOf, redactOptionsOf, splitCuts, type EditSummary, type PageItem, type Tool, type Values, type WorkInput } from "../tools/registry.ts";
+import { acceptOf, redactOptionsOf, slotAccept, splitCuts, type EditSummary, type PageItem, type Tool, type Values, type WorkInput } from "../tools/registry.ts";
 
 const ACCESS_KEY_STORAGE = "prysma:access-key";
 
@@ -95,7 +96,21 @@ export function ToolPage({ tool, capabilities }: Props) {
 
   const usesSingle = workspace.kind === "single" || workspace.kind === "pages";
   const redactMode = workspace.kind === "pages" && workspace.edit === "redact";
-  const preview = useDocumentPreview(usesSingle ? single : null, workspace.kind === "pages" ? "all" : "first");
+  /** Ranura cuyo PDF se previsualiza (el documento a firmar). */
+  const previewSlot = workspace.kind === "slots" ? workspace.preview : undefined;
+  const previewFile = usesSingle ? single : previewSlot ? (slots[previewSlot] ?? null) : null;
+  const hasPreview = usesSingle || previewSlot !== undefined;
+  const preview = useDocumentPreview(previewFile, workspace.kind === "pages" ? "all" : "first");
+
+  // e.firma: el certificado se lee al instante y la contraseña se comprueba antes de firmar.
+  const credentialSlots = tool.credentials;
+  const passwordValue = credentialSlots ? values[credentialSlots.password] : "";
+  const credentials = useCredentials(
+    credentialSlots ? (slots[credentialSlots.certificate] ?? null) : null,
+    credentialSlots ? (slots[credentialSlots.privateKey] ?? null) : null,
+    typeof passwordValue === "string" ? passwordValue : "",
+  );
+  const credentialsReady = !credentialSlots || credentials.status === "ready";
 
   const running = phase.kind === "running";
   const hasContent =
@@ -180,11 +195,12 @@ export function ToolPage({ tool, capabilities }: Props) {
           });
           break;
         case "slots":
+          // Cada archivo va a la primera ranura libre que acepte su tipo (PDF al documento, .cer al certificado…).
           setSlots((current) => {
             const next = { ...current };
-            const queue = [...incoming];
-            for (const slot of workspace.slots) {
-              if (!next[slot.key] && queue.length > 0) next[slot.key] = queue.shift() as File;
+            for (const file of incoming) {
+              const target = workspace.slots.find((slot) => !next[slot.key] && matchesAccept(file, slotAccept(workspace, slot)));
+              if (target) next[target.key] = file;
             }
             return next;
           });
@@ -225,10 +241,10 @@ export function ToolPage({ tool, capabilities }: Props) {
   const effectiveCuts = workspace.kind === "pages" && workspace.edit === "split" ? splitCuts(values, { pageCount: pages.length, cuts }) : cuts;
   const edit: EditSummary = { pageCount: preview.pageCount, pages, cuts: effectiveCuts, redactions: selectedMatches.length };
 
-  const encryptedBlocks = usesSingle && preview.status === "encrypted" && tool.slug !== "desbloquear-pdf";
+  const encryptedBlocks = hasPreview && preview.status === "encrypted" && tool.slug !== "desbloquear-pdf";
   const blockingIssue = encryptedBlocks
     ? "encrypted"
-    : usesSingle && preview.status === "error"
+    : hasPreview && preview.status === "error"
       ? "corrupt"
       : Object.values(issues).find(Boolean) ?? null;
 
@@ -238,7 +254,7 @@ export function ToolPage({ tool, capabilities }: Props) {
       case "files":
         return items.length >= workspace.min;
       case "slots":
-        return workspace.slots.every((slot) => slots[slot.key]);
+        return workspace.slots.every((slot) => slots[slot.key]) && credentialsReady;
       case "pages":
         return single !== null && preview.pageCount > 0 && pages.length > 0 && (!redactMode || scan.status === "ready");
       default:
@@ -344,7 +360,7 @@ export function ToolPage({ tool, capabilities }: Props) {
         results={phase.results}
         warnings={phase.warnings}
         metrics={phase.metrics}
-        zipName={zipNameFor(tool, (workspace.kind === "files" ? items[0]?.file : single)?.name)}
+        zipName={zipNameFor(tool, (workspace.kind === "files" ? items[0]?.file : previewFile)?.name)}
         onDownload={() => setDownloaded(true)}
         onEdit={() => setPhase({ kind: "idle" })}
         onRestart={restart}
@@ -430,7 +446,10 @@ export function ToolPage({ tool, capabilities }: Props) {
                   key={slot.key}
                   label={slot.label}
                   hint={slot.hint}
-                  accept={accept}
+                  accept={slotAccept(workspace, slot)}
+                  icon={slot.icon ?? "fileText"}
+                  wide={slot.wide ?? false}
+                  preview={slot.key === workspace.preview ? preview : undefined}
                   file={slots[slot.key] ?? null}
                   disabled={running}
                   onRejected={reportRejected}
@@ -445,7 +464,7 @@ export function ToolPage({ tool, capabilities }: Props) {
                   }}
                 />
               ))}
-              <p className="editor-hint">Toma las fotos con la credencial en horizontal, sobre un fondo liso y sin reflejos.</p>
+              {workspace.note && <p className="editor-hint">{workspace.note}</p>}
             </div>
           )}
           {workspace.kind === "single" && single && <FileCard file={single} preview={preview} onReplace={picker.open} disabled={running} />}
@@ -493,6 +512,8 @@ export function ToolPage({ tool, capabilities }: Props) {
           {privacy}
           {serverNotice}
 
+          {/* Primero quién firma (en cuanto llega el .cer) y debajo la contraseña y el resto de opciones. */}
+          {credentialSlots && <CredentialsPanel state={credentials} />}
           <OptionsForm fields={tool.fields} values={values} onChange={setValues} disabled={running} />
           {redactMode && single && (
             <RedactPanel

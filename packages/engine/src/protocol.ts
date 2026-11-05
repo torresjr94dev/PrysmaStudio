@@ -66,6 +66,36 @@ export interface RedactArea {
   rects: RedactRect[];
 }
 
+export type CertificateKind = "fiel" | "csd" | "unknown";
+
+/** Lo que la interfaz muestra del certificado .cer antes de firmar. Datos planos, clonables. */
+export interface CertificateInfo {
+  subjectName: string;
+  organization: string | null;
+  /** Sucursal (OU): la llevan los CSD, no la e.firma. */
+  branch: string | null;
+  email: string | null;
+  rfc: string | null;
+  curp: string | null;
+  issuerName: string;
+  /** Número de certificado del SAT (20 dígitos) o la serie en hexadecimal si no sigue ese formato. */
+  serialNumber: string;
+  notBefore: string;
+  notAfter: string;
+  keyUsage: string[];
+  kind: CertificateKind;
+  rsaBits: number;
+  signatureAlgorithm: string;
+}
+
+export type StampCorner = "bottom-left" | "bottom-right" | "top-left" | "top-right";
+
+/** Sello visible de la firma: un recuadro con nombre, RFC y fecha en una esquina de una página. */
+export interface SignStamp {
+  page: "first" | "last";
+  corner: StampCorner;
+}
+
 export interface OutputFile {
   name: string;
   mime: "application/pdf";
@@ -85,7 +115,8 @@ export type EngineOp =
   | { op: "imagesToPdf"; inputs: InputFile[]; paper: Paper | "fit" }
   | { op: "ineSheet"; front: InputFile; back: InputFile; paper: Paper }
   | { op: "cfdiToPdf"; inputs: InputFile[] }
-  | { op: "redact"; input: InputFile; areas: RedactArea[]; stripMetadata: boolean };
+  | { op: "redact"; input: InputFile; areas: RedactArea[]; stripMetadata: boolean }
+  | { op: "sign"; input: InputFile; certificate: InputFile; privateKey: InputFile; password: string; reason: string; stamp: SignStamp | null };
 
 export type EngineOpName = EngineOp["op"];
 
@@ -96,6 +127,13 @@ export type EngineErrorCode =
   | "input.invalid"
   | "input.unsupported_type"
   | "limits.exceeded"
+  | "pdf.signed"
+  | "efirma.invalid_certificate"
+  | "efirma.invalid_key"
+  | "efirma.wrong_password"
+  | "efirma.mismatch"
+  | "efirma.certificate_expired"
+  | "efirma.not_fiel"
   | "internal";
 
 export interface EngineMetrics {

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/web/public/brand/prisma-mark.png" width="160" alt="">
+</p>
+
 # PrysmaStudio
 
 [![CI](https://github.com/torresjr94dev/PrysmaStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/torresjr94dev/PrysmaStudio/actions/workflows/ci.yml)
@@ -16,6 +20,7 @@ al peso exacto que pide cada portal.
 | INE por ambos lados | Tu equipo | Frente y reverso en una hoja, a tamaño real, en Carta u Oficio |
 | CFDI (XML) a PDF | Tu equipo | Factura, nómina o complemento de pago del SAT como PDF legible, con QR, sellos y cadena original |
 | Tapar datos personales | Tu equipo | Encuentra CURP, RFC, NSS, correos, teléfonos o textos propios y los elimina del PDF (no solo los cubre) |
+| Firmar con e.firma | Tu equipo | Firma PAdES con tu .cer y .key del SAT; la llave se descifra en el navegador y la firma se verifica en Acrobat o con OpenSSL |
 | Comprimir PDF | Tu equipo | Presets o «que pese menos de X MB» para portales con límite |
 | Unir PDF | Tu equipo | Arrastra para elegir el orden |
 | Dividir PDF | Tu equipo | Cortes con tijeras entre páginas, cada N páginas o todas por separado |
@@ -60,7 +65,7 @@ Requisitos: Node ≥ 24, pnpm 12 (`corepack enable`), [uv](https://docs.astral.s
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:5173: las 11 herramientas locales
+pnpm dev            # http://localhost:5173: las 12 herramientas locales
 ```
 
 Para las herramientas de servidor en desarrollo (Vite redirige `/v1` al puerto 8080):
@@ -152,10 +157,6 @@ packages/engine/   Motor PDF: operaciones sobre mupdf.js, worker y cliente con c
 server/            Servidor opcional (FastAPI): Office→PDF y OCR
 deploy/            Dockerfiles, compose y Caddyfile con las cabeceras de seguridad
 ```
-
-## Próximamente
-
-- Firma con e.firma (PAdES)
 
 ## Licencia
 

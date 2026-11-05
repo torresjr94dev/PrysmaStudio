@@ -24,7 +24,13 @@ export interface PreviewHandlers {
 
 function transferablesOf(op: EngineOp): ArrayBuffer[] {
   const files: InputFile[] =
-    op.op === "merge" || op.op === "imagesToPdf" || op.op === "cfdiToPdf" ? op.inputs : op.op === "ineSheet" ? [op.front, op.back] : [op.input];
+    op.op === "merge" || op.op === "imagesToPdf" || op.op === "cfdiToPdf"
+      ? op.inputs
+      : op.op === "ineSheet"
+        ? [op.front, op.back]
+        : op.op === "sign"
+          ? [op.input, op.certificate, op.privateKey]
+          : [op.input];
   return files.map((file) => file.bytes);
 }
 

@@ -69,6 +69,15 @@ export function ToolArt({ slug }: { slug: string }) {
           <i className="art-bar" />
         </span>
       );
+    case "firmar-efirma":
+      return (
+        <span className="tool-art" data-art={slug} aria-hidden="true">
+          <i className="art-sheet a" />
+          <svg className="art-sign" viewBox="0 0 48 20" fill="none">
+            <path d="M2 14c3-7 5-9 6.5-6.5s.5 10 2.5 7.5 3-10 5-6.5 1 8.5 3 6 2.5-5 4.5-4.5 2 5 5 3.5 3-3 6-3 5 2 11 1" pathLength={1} />
+          </svg>
+        </span>
+      );
     case "cfdi-a-pdf":
       return (
         <span className="tool-art" data-art={slug} aria-hidden="true">

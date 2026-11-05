@@ -1,4 +1,4 @@
-import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn, RedactArea, RedactCategory, RedactOptions } from "@prysmastudio/engine";
+import type { ArrangedPage, CompressTarget, EngineOp, InputFile, Paper, Permission, QuarterTurn, RedactArea, RedactCategory, RedactOptions, SignStamp, StampCorner } from "@prysmastudio/engine";
 import type { IconName } from "../components/Icon.tsx";
 import type { ServerStep } from "../lib/server.ts";
 
@@ -22,7 +22,7 @@ export type Field =
   | (FieldBase & { type: "choice"; layout: "cards" | "segmented"; options: Option[] })
   | (FieldBase & { type: "select"; options: Option[] })
   | (FieldBase & { type: "text"; placeholder?: string; required?: boolean })
-  | (FieldBase & { type: "password"; required?: boolean; autoComplete: "new-password" | "current-password" })
+  | (FieldBase & { type: "password"; required?: boolean; autoComplete: "new-password" | "current-password" | "off" })
   | (FieldBase & { type: "number"; min: number; max: number; step: number; unit?: string })
   | (FieldBase & { type: "toggles"; options: Option[] });
 
@@ -42,8 +42,26 @@ export type Workspace =
   | { kind: "single"; accept: string }
   /** Un PDF con cuadrícula de páginas editable. */
   | { kind: "pages"; edit: PageEditMode }
-  /** Archivos con un rol fijo (frente y reverso de la INE). */
-  | { kind: "slots"; accept: string; slots: Array<{ key: string; label: string; hint: string }> };
+  /** Archivos con un rol fijo (frente y reverso de la INE; PDF, .cer y .key de la e.firma). */
+  | { kind: "slots"; accept: string; slots: Slot[]; preview?: string; note?: string };
+
+export interface Slot {
+  key: string;
+  label: string;
+  hint: string;
+  /** Tipos propios de la ranura; si falta, los del espacio de trabajo. */
+  accept?: string;
+  icon?: IconName;
+  /** Ocupa todo el ancho (el documento principal). */
+  wide?: boolean;
+}
+
+/** Ranuras y campo que forman la e.firma: la interfaz lee el certificado y verifica la contraseña al vuelo. */
+export interface CredentialSlots {
+  certificate: string;
+  privateKey: string;
+  password: string;
+}
 
 export interface WorkInput {
   files: InputFile[];
@@ -88,6 +106,7 @@ interface ToolBase {
   fields: Field[];
   defaults: Values;
   validate?: (values: Values, edit: EditSummary) => string | null;
+  credentials?: CredentialSlots;
 }
 
 export interface ClientTool extends ToolBase {
@@ -107,6 +126,22 @@ export const PDF_ACCEPT = "application/pdf,.pdf";
 export const IMAGE_ACCEPT = "image/jpeg,image/png,.jpg,.jpeg,.png";
 export const OFFICE_ACCEPT = ".doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf";
 export const XML_ACCEPT = "text/xml,application/xml,.xml";
+export const CER_ACCEPT = ".cer,application/x-x509-ca-cert,application/pkix-cert,application/x-x509-user-cert";
+export const KEY_ACCEPT = ".key";
+
+const STAMP_CORNERS: Array<{ value: StampCorner | "none"; label: string }> = [
+  { value: "bottom-right", label: "Abajo a la derecha" },
+  { value: "bottom-left", label: "Abajo a la izquierda" },
+  { value: "top-right", label: "Arriba a la derecha" },
+  { value: "top-left", label: "Arriba a la izquierda" },
+  { value: "none", label: "Sin sello visible" },
+];
+
+function stampOf(values: Values): SignStamp | null {
+  const corner = STAMP_CORNERS.find((option) => option.value === str(values, "stamp"))?.value ?? "bottom-right";
+  if (corner === "none") return null;
+  return { page: str(values, "stampPage") === "first" ? "first" : "last", corner };
+}
 
 const PAPER_OPTIONS: Option[] = [
   { value: "letter", label: "Carta" },
@@ -195,9 +230,10 @@ export const TOOLS: Tool[] = [
       kind: "slots",
       accept: IMAGE_ACCEPT,
       slots: [
-        { key: "front", label: "Frente", hint: "Foto o escaneo del frente" },
-        { key: "back", label: "Reverso", hint: "Foto o escaneo del reverso" },
+        { key: "front", label: "Frente", hint: "Foto o escaneo del frente", icon: "idCard" },
+        { key: "back", label: "Reverso", hint: "Foto o escaneo del reverso", icon: "idCard" },
       ],
+      note: "Toma las fotos con la credencial en horizontal, sobre un fondo liso y sin reflejos.",
     },
     fields: [{ type: "choice", layout: "segmented", key: "paper", label: "Papel", options: PAPER_OPTIONS }],
     defaults: { paper: "letter" },
@@ -264,6 +300,60 @@ export const TOOLS: Tool[] = [
       input: first(input),
       areas: input.redactions,
       stripMetadata: list(values, "extras").includes("metadata"),
+    }),
+  },
+  {
+    slug: "firmar-efirma",
+    runtime: "client",
+    category: "tramites",
+    title: "Firmar con e.firma",
+    summary: "Firma un PDF con tu e.firma del SAT (.cer, .key y contraseña). Verificable en Acrobat; nada sale de tu equipo.",
+    icon: "signature",
+    action: "Firmar",
+    workspace: {
+      kind: "slots",
+      accept: PDF_ACCEPT,
+      preview: "pdf",
+      slots: [
+        { key: "pdf", label: "Documento", hint: "El PDF que vas a firmar", accept: PDF_ACCEPT, icon: "fileText", wide: true },
+        { key: "cer", label: "Certificado (.cer)", hint: "Archivo .cer de tu e.firma", accept: CER_ACCEPT, icon: "idCard" },
+        { key: "key", label: "Llave privada (.key)", hint: "Archivo .key de tu e.firma", accept: KEY_ACCEPT, icon: "lock" },
+      ],
+      note: "Son los mismos archivos que usas en el portal del SAT. La llave se descifra en tu navegador y nunca se envía.",
+    },
+    credentials: { certificate: "cer", privateKey: "key", password: "password" },
+    fields: [
+      {
+        type: "password",
+        key: "password",
+        label: "Contraseña de la llave privada",
+        required: true,
+        autoComplete: "off",
+        hint: "La que elegiste al generar tu e.firma. No es la contraseña del portal del SAT.",
+      },
+      { type: "select", key: "stamp", label: "Sello visible", options: STAMP_CORNERS, hint: "Un recuadro con tu nombre, RFC y fecha. La firma vale igual con o sin él." },
+      {
+        type: "choice",
+        layout: "segmented",
+        key: "stampPage",
+        label: "Página del sello",
+        options: [
+          { value: "last", label: "Última" },
+          { value: "first", label: "Primera" },
+        ],
+        showIf: (values) => str(values, "stamp") !== "none",
+      },
+      { type: "text", key: "reason", label: "Motivo (opcional)", placeholder: "Conformidad con el contrato" },
+    ],
+    defaults: { password: "", stamp: "bottom-right", stampPage: "last", reason: "" },
+    build: (input, values) => ({
+      op: "sign",
+      input: slot(input, "pdf"),
+      certificate: slot(input, "cer"),
+      privateKey: slot(input, "key"),
+      password: str(values, "password"),
+      reason: str(values, "reason"),
+      stamp: stampOf(values),
     }),
   },
   {
@@ -555,7 +645,14 @@ export function findTool(slug: string): Tool | undefined {
 }
 
 export function acceptOf(tool: Tool): string {
-  return tool.workspace.kind === "pages" ? PDF_ACCEPT : tool.workspace.accept;
+  const workspace = tool.workspace;
+  if (workspace.kind === "pages") return PDF_ACCEPT;
+  if (workspace.kind === "slots") return [...new Set([workspace.accept, ...workspace.slots.map((slot) => slot.accept ?? workspace.accept)])].join(",");
+  return workspace.accept;
+}
+
+export function slotAccept(workspace: Extract<Workspace, { kind: "slots" }>, slot: Slot): string {
+  return slot.accept ?? workspace.accept;
 }
 
 export type ToolStatus = "ready" | "checking" | "offline";
