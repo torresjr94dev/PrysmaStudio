@@ -1067,148 +1067,26 @@ kbd {
   opacity: 0.7;
 }
 
-/* --- Escena del prisma: el logo sobre un escenario de vidrio oscuro (en ambos temas) ------------ */
+/* --- Escena del prisma: el logo transparente, sin contenedor ni efectos --------------------------- */
 
 .prism-stage {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-4);
   width: 100%;
-  max-width: 600px;
-  padding: var(--space-5) var(--space-4) var(--space-4);
+  max-width: 640px;
   justify-self: end;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(70% 60% at 58% 44%, rgb(58 92 230 / 0.22), transparent 70%),
-    radial-gradient(45% 45% at 88% 38%, rgb(122 77 255 / 0.18), transparent 70%),
-    #090a10;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    var(--shadow-lg);
-  transition: box-shadow var(--duration-slow) var(--ease);
-}
-
-.prism-stage::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(60% 50% at 50% 50%, rgb(255 255 255 / 0.05), transparent 70%);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease);
-}
-
-.prism-stage.is-over::after {
-  opacity: 1;
-}
-
-.prism-scene {
-  position: relative;
-  width: 108%;
-  margin-inline: -4%;
-  aspect-ratio: 1400 / 493;
-}
-
-.prism-logo,
-.prism-overlay {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 .prism-logo {
-  object-fit: contain;
-  filter: saturate(1.05);
-  transition: filter var(--duration-slow) var(--ease);
-}
-
-.prism-stage.is-over .prism-logo {
-  filter: saturate(1.25) brightness(1.08);
-}
-
-.prism-overlay {
-  overflow: visible;
-}
-
-.prism-sheet {
-  filter: drop-shadow(0 16px 28px rgb(0 0 0 / 0.55));
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: sheet-float 7s ease-in-out infinite;
+  display: block;
+  width: 100%;
+  height: auto;
+  /* El lienzo original corta el haz (izquierda) y el espectro (derecha) en seco: se difuminan solo esos
+     extremos para que la luz entre y salga de la nada en lugar de terminar en una línea. */
+  mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 84%, transparent 100%);
   transition: transform var(--duration-slow) var(--ease);
 }
 
-.prism-stage.is-over .prism-sheet {
-  animation: none;
-  transform: translate(150px, 30px) scale(0.86);
-}
-
-.prism-paper {
-  fill: #ffffff;
-}
-
-.prism-ink {
-  fill: rgb(0 0 0 / 0.12);
-}
-
-.prism-ink.is-strong {
-  fill: rgb(0 0 0 / 0.3);
-}
-
-/* Leyenda: las cinco categorías como el espectro que sale del prisma. */
-.prism-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgb(244 245 247 / 0.62);
-}
-
-.prism-legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.prism-legend-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ray, #fff);
-  box-shadow: 0 0 10px var(--ray, #fff);
-}
-
-.prism-legend li[data-category="tramites"] {
-  --ray: #e14ef5;
-}
-
-.prism-legend li[data-category="organizar"] {
-  --ray: #7a4dff;
-}
-
-.prism-legend li[data-category="optimizar"] {
-  --ray: #2b86ff;
-}
-
-.prism-legend li[data-category="convertir"] {
-  --ray: #19e3ff;
-}
-
-.prism-legend li[data-category="seguridad"] {
-  --ray: #5df0a8;
+.prism-stage.is-over .prism-logo {
+  transform: scale(1.03);
 }
 
 /* display-lg: 56 / 64, peso ligero, tracking -0.035em. Jerarquía por color, no por negrita. */
@@ -4113,17 +3991,6 @@ kbd {
 @keyframes beam-flow {
   to {
     stroke-dashoffset: -12;
-  }
-}
-
-@keyframes sheet-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-6deg);
-  }
-
-  50% {
-    transform: translateY(-5px) rotate(-5deg);
   }
 }
 
