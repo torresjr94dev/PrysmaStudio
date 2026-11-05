@@ -40,9 +40,12 @@
 		# progreso en su búfer y el navegador deja de verlos en vivo (las respuestas JSON son pequeñas).
 		encode zstd gzip
 		root * /srv
+		# Solo /assets lleva hash en el nombre: inmutable. Todo lo demás se revalida en cada visita (ETag →
+		# 304 barato). Ojo: `header` se evalúa ANTES de try_files, así que un matcher «/index.html» no cubre
+		# «/» ni las rutas de la SPA; sin esto el navegador cacheaba la portada por heurística durante horas.
 		@immutable path /assets/*
 		header @immutable Cache-Control "public, max-age=31536000, immutable"
-		@revalidate path /sw.js /index.html /manifest.webmanifest
+		@revalidate not path /assets/*
 		header @revalidate Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server {
