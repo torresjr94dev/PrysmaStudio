@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM python:3.13-slim-trixie
+FROM python:3.15-slim-trixie
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa tesseract-ocr-eng ghostscript \
  && rm -rf /var/lib/apt/lists/*
